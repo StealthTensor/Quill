@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Worksheet Filler</title>
+<style>
+  :root {
+    --bg: #0f1117; --panel: #161923; --panel-2: #1d212e; --line: #2a2f3f;
+    --text: #e6e8ef; --dim: #9aa3b8; --accent: #6aa6ff; --ok: #4ade80;
+    --warn: #fbbf24; --bad: #f87171; --cache: #a78bfa;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.55 system-ui, -apple-system, Segoe UI, sans-serif;
+  }
+  header {
+    display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+    padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 650; }
+  header .meta { color: var(--dim); font-family: var(--mono); font-size: 12px; }
+  main { display: grid; grid-template-columns: 320px 1fr; gap: 0; align-items: start; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  aside {
+    border-right: 1px solid var(--line); padding: 16px; height: calc(100vh - 53px);
+    overflow-y: auto; position: sticky; top: 0;
+  }
+  @media (max-width: 900px) { aside { height: auto; position: static; } }
+  section { padding: 16px 20px; }
+  h2 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .09em;
+    color: var(--dim); margin: 0 0 8px; font-weight: 650;
+  }
+  .group { margin-bottom: 22px; }
+  .list { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .row {
+    display: flex; align-items: center; gap: 9px; padding: 7px 10px;
+    border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  .row:last-child { border-bottom: 0; }
+  .row label { flex: 1; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .sub { color: var(--dim); font-size: 12px; }
+  button {
+    font: inherit; color: var(--text); background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 7px; padding: 6px 11px; cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.primary { background: var(--accent); color: #08101f; border-color: var(--accent); font-weight: 650; }
+  button.tiny { padding: 2px 7px; font-size: 12px; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+  .card { border: 1px solid var(--line); border-radius: 9px; padding: 11px 13px; background: var(--panel); }
+  .card .title { font-weight: 600; margin-bottom: 3px; }
+  .card .state { font-family: var(--mono); font-size: 12px; color: var(--dim); }
+  .card.ok { border-color: var(--ok); } .card.failed { border-color: var(--bad); }
+  .card.cached { border-color: var(--cache); } .card.skipped { border-color: var(--warn); }
+  .bar { height: 4px; background: var(--panel-2); border-radius: 3px; margin-top: 8px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--accent); width: 0; transition: width .25s; }
+  .trace { border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+  .ev { border-bottom: 1px solid var(--line); background: var(--panel); }
+  .ev:last-child { border-bottom: 0; }
+  .ev > summary {
+    display: flex; gap: 10px; align-items: baseline; padding: 7px 11px;
+    cursor: pointer; list-style: none; font-family: var(--mono); font-size: 12.5px;
+  }
+  .ev > summary::-webkit-details-marker { display: none; }
+  .ev[open] > summary { background: var(--panel-2); }
+  .ev .kind { min-width: 168px; color: var(--accent); }
+  .ev .when { color: var(--dim); min-width: 62px; }
+  .ev .sum { color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ev.k-ok .kind { color: var(--ok); } .ev.k-bad .kind { color: var(--bad); }
+  .ev.k-warn .kind { color: var(--warn); } .ev.k-cache .kind { color: var(--cache); }
+  .body { padding: 4px 12px 12px; }
+  .body h4 { margin: 10px 0 4px; font-size: 11px; text-transform: uppercase; color: var(--dim); letter-spacing: .07em; }
+  pre {
+    margin: 0; padding: 10px; background: #0b0d13; border: 1px solid var(--line);
+    border-radius: 7px; overflow: auto; max-height: 340px;
+    font-family: var(--mono); font-size: 12px; white-space: pre-wrap; word-break: break-word;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--dim); font-weight: 600; }
+  td.mono, th.mono { font-family: var(--mono); }
+  .pill {
+    display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px;
+    font-family: var(--mono); border: 1px solid var(--line); color: var(--dim);
+  }
+  .pill.model { color: var(--accent); border-color: var(--accent); }
+  .pill.config { color: var(--ok); border-color: var(--ok); }
+  .note { color: var(--dim); font-size: 12.5px; }
+  .err { color: var(--bad); font-family: var(--mono); font-size: 12.5px; }
+  .split { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  input[type=file] { width: 100%; font-size: 12px; color: var(--dim); }
+  .legend { display: grid; gap: 4px; font-size: 12.5px; color: var(--dim); }
+  .legend b { color: var(--text); font-family: var(--mono); font-weight: 500; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Worksheet Filler</h1>
+  <span class="meta" id="gateway">loading…</span>
+  <span class="meta" id="cacheinfo"></span>
+</header>
+
+<main>
+  <aside>
+    <div class="group">
+      <div class="split"><h2>Worksheets</h2><button class="tiny" id="pick-all-docs">all</button></div>
+      <div class="list" id="docs"></div>
+      <div class="btn-row">
+        <input type="file" id="upload" multiple accept=".docx">
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="split"><h2>Students</h2><button class="tiny" id="pick-all-students">all</button></div>
+      <div class="list" id="students"></div>
+      <p class="note">Edit <b>config.yaml</b> to add students, then reload.</p>
+    </div>
+
+    <div class="group">
+      <h2>Run</h2>
+      <div class="row" style="border-radius:8px;border:1px solid var(--line)">
+        <input type="checkbox" id="nocache">
+        <label for="nocache">Ignore cache (regenerate)</label>
+      </div>
+      <div class="btn-row">
+        <button class="primary" id="run">Fill selected</button>
+        <button id="clear-cache">Clear cache</button>
+      </div>
+      <p class="note" id="plan"></p>
+    </div>
+
+    <div class="group">
+      <h2>Output</h2>
+      <div class="list" id="outputs"></div>
+      <div class="btn-row"><button id="zip">Download all (.zip)</button></div>
+    </div>
+  </aside>
+
+  <section>
+    <div class="group">
+      <h2>Jobs</h2>
+      <div class="cards" id="cards"><p class="note">Nothing running. Select worksheets and students, then Fill.</p></div>
+    </div>
+
+    <div class="group">
+      <div class="split">
+        <h2>Live trace — every internal step</h2>
+        <div class="btn-row" style="margin:0">
+          <button class="tiny" id="expand">expand all</button>
+          <button class="tiny" id="collapse">collapse all</button>
+          <button class="tiny" id="clear-trace">clear</button>
+        </div>
+      </div>
+      <div class="legend group">
+        <div><b>slots.detected</b> — blanks found in the .docx, with the marked-up text the model sees</div>
+        <div><b>identity.resolved</b> — name / reg. no. / branch / date taken from config, never from the model</div>
+        <div><b>request.sent</b> — the exact system and user prompt, verbatim</div>
+        <div><b>response.received</b> — raw reply, which upstream model served it, latency, token usage</div>
+        <div><b>parse.failed / request.retry / repair.round</b> — every recovery attempt, with the reason</div>
+        <div><b>answer.cleaned</b> — before/after for answers changed by the Yes/No and length rules</div>
+        <div><b>document.written</b> — final answer for every slot, and where the file was saved</div>
+      </div>
+      <div class="trace" id="trace"></div>
+    </div>
+
+    <div class="group" id="inspect-wrap" hidden>
+      <div class="split"><h2 id="inspect-title">Inspection</h2><button class="tiny" id="close-inspect">close</button></div>
+      <div id="inspect"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const clock = (t) => new Date(t * 1000).toLocaleTimeString([], {hour12: false});
+
+let state = {documents: [], students: [], settings: {}, outputs: []};
+let source = null;
+const jobs = new Map();
+
+async function loadState() {
+  const res = await fetch("/api/state");
+  const data = await res.json();
+  if (data.error) { $("gateway").textContent = "config error: " + data.error; return; }
+  state = data;
+
+  const s = data.settings;
+  $("gateway").textContent =
+    `${s.base_url} · model=${s.model} · temp=${s.temperature} · ${s.workers} workers · ` +
+    `${s.slots_per_request} blanks/request`;
+  $("cacheinfo").textContent = `${data.cached_batches} cached batches`;
+
+  $("docs").innerHTML = data.documents.length ? data.documents.map((doc) => `
+    <div class="row">
+      <input type="checkbox" class="doc" value="${esc(doc.name)}" id="d-${esc(doc.name)}">
+      <label for="d-${esc(doc.name)}">${esc(doc.name)}</label>
+      <button class="tiny" data-inspect="${esc(doc.name)}">inspect</button>
+      <button class="tiny" data-delete="${esc(doc.name)}">×</button>
+    </div>`).join("") : `<div class="row"><span class="sub">No .docx in input/ — upload some.</span></div>`;
+
+  $("students").innerHTML = data.students.length ? data.students.map((st) => `
+    <div class="row">
+      <input type="checkbox" class="student" value="${esc(st.slug)}" id="s-${esc(st.slug)}">
+      <label for="s-${esc(st.slug)}">${esc(st.name)} <span class="sub">${esc(st.reg_no)}</span></label>
+    </div>`).join("") : `<div class="row"><span class="sub">No students in config.yaml.</span></div>`;
+
+  renderOutputs();
+  updatePlan();
+}
+
+function renderOutputs() {
+  $("outputs").innerHTML = state.outputs.length ? state.outputs.map((out) => `
+    <div class="row">
+      <label>${esc(out.student_slug)} / ${esc(out.filename)}</label>
+      <a class="tiny" href="/api/download/${encodeURIComponent(out.student_slug)}/${encodeURIComponent(out.filename)}">
+        <button class="tiny">get</button></a>
+    </div>`).join("") : `<div class="row"><span class="sub">Nothing filled yet.</span></div>`;
+}
+
+const chosenDocs = () => [...document.querySelectorAll(".doc:checked")].map((el) => el.value);
+const chosenStudents = () => [...document.querySelectorAll(".student:checked")].map((el) => el.value);
+
+function updatePlan() {
+  const d = chosenDocs().length, s = chosenStudents().length;
+  $("plan").textContent = d && s
+    ? `${d} worksheet(s) × ${s} student(s) = ${d * s} file(s) to produce.`
+    : "Select at least one worksheet and one student.";
+}
+
+document.addEventListener("change", (e) => {
+  if (e.target.matches(".doc, .student")) updatePlan();
+});
+
+document.addEventListener("click", async (e) => {
+  const inspect = e.target.dataset?.inspect;
+  const remove = e.target.dataset?.delete;
+  if (inspect) return showInspect(inspect);
+  if (remove) {
+    if (!confirm(`Remove ${remove} from input/?`)) return;
+    await fetch("/api/documents/delete", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({name: remove}),
+    });
+    loadState();
+  }
+});
+
+$("pick-all-docs").onclick = () => {
+  const all = [...document.querySelectorAll(".doc")];
+  const target = !all.every((el) => el.checked);
+  all.forEach((el) => (el.checked = target));
+  updatePlan();
+};
+$("pick-all-students").onclick = () => {
+  const all = [...document.querySelectorAll(".student")];
+  const target = !all.every((el) => el.checked);
+  all.forEach((el) => (el.checked = target));
+  updatePlan();
+};
+
+$("upload").onchange = async (e) => {
+  const form = new FormData();
+  [...e.target.files].forEach((file) => form.append("files", file));
+  const res = await fetch("/api/upload", {method: "POST", body: form});
+  const data = await res.json();
+  if (data.rejected?.length) alert("Not .docx, skipped:\n" + data.rejected.join("\n"));
+  e.target.value = "";
+  loadState();
+};
+
+$("clear-cache").onclick = async () => {
+  if (!confirm("Delete all cached answers? The next run will call the API again.")) return;
+  const res = await fetch("/api/cache/clear", {method: "POST"});
+  const data = await res.json();
+  alert(`Removed ${data.removed} cached batches.`);
+  loadState();
+};
+
+$("zip").onclick = () => (window.location = "/api/download-all");
+$("close-inspect").onclick = () => ($("inspect-wrap").hidden = true);
+$("clear-trace").onclick = () => ($("trace").innerHTML = "");
+$("expand").onclick = () => document.querySelectorAll(".ev").forEach((el) => (el.open = true));
+$("collapse").onclick = () => document.querySelectorAll(".ev").forEach((el) => (el.open = false));
+
+async function showInspect(name) {
+  const res = await fetch("/api/inspect?doc=" + encodeURIComponent(name));
+  const data = await res.json();
+  if (data.error) return alert(data.error);
+
+  $("inspect-title").textContent = `Inspection — ${data.document}`;
+  $("inspect").innerHTML = `
+    <p class="note">${data.total} blanks · ${data.from_config} filled from config ·
+      ${data.from_model} from the model · ${data.requests} request(s) to the gateway.</p>
+    <h4>Blanks</h4>
+    <table>
+      <tr><th class="mono">id</th><th>kind</th><th>row</th><th>column</th><th>source</th></tr>
+      ${data.slots.map((slot) => `<tr>
+        <td class="mono">${esc(slot.id)}</td><td>${esc(slot.kind)}</td>
+        <td>${esc(slot.label)}</td><td>${esc(slot.column)}</td>
+        <td><span class="pill ${slot.source}">${esc(slot.source)}</span>
+          ${slot.preview ? " " + esc(slot.preview) : ""}</td>
+      </tr>`).join("")}
+    </table>
+    <h4>Marked-up text the model receives</h4>
+    <pre>${esc(data.marked_text)}</pre>`;
+  $("inspect-wrap").hidden = false;
+  $("inspect-wrap").scrollIntoView({behavior: "smooth"});
+}
+
+const TONE = {
+  "job.done": "k-ok", "document.written": "k-ok", "batch.done": "k-ok",
+  "job.failed": "k-bad", "parse.failed": "k-bad", "batch.error": "k-bad",
+  "request.retry": "k-warn", "repair.round": "k-warn", "job.skipped": "k-warn",
+  "answer.cleaned": "k-warn", "chunk.cached": "k-cache",
+};
+
+function summarise(e) {
+  switch (e.kind) {
+    case "batch.start": return `${e.jobs} job(s), model=${e.model}, ${e.workers} workers, cache=${e.use_cache}`;
+    case "batch.done": return `${e.succeeded} succeeded, ${e.failed} failed, ${e.skipped} skipped`;
+    case "job.start": return e.job;
+    case "slots.detected": return `${e.job} — ${e.total} blanks found`;
+    case "identity.resolved": return `${e.job} — ${Object.keys(e.answers).length} from config, ${e.pending} for the model`;
+    case "chunk.start": return `${e.job} — request ${e.chunk}/${e.chunks}, ${e.slot_ids.length} blanks`;
+    case "chunk.cached": return `${e.job} — request ${e.chunk}/${e.chunks} served from ${e.cache_file}`;
+    case "chunk.done": return `${e.job} — request ${e.chunk}/${e.chunks} answered, cached as ${e.cache_file}`;
+    case "request.sent": return `${e.prompt_chars} chars out, temp=${e.temperature}`;
+    case "response.received":
+      return `${e.upstream_model || "?"} · ${e.latency_seconds}s · ${e.reply_chars} chars` +
+             (e.usage?.total_tokens ? ` · ${e.usage.total_tokens} tokens` : "");
+    case "request.retry": return `attempt ${e.attempt}/${e.of} — ${e.error}`.slice(0, 160);
+    case "parse.failed": return `attempt ${e.attempt}/${e.of} — reply was not JSON`;
+    case "repair.round": return `round ${e.round} — missing ${e.missing.join(", ")}`;
+    case "answer.cleaned": return `${Object.keys(e.changes).length} answer(s) adjusted by the column rules`;
+    case "document.written": return `${e.written}/${e.total} blanks written → ${e.path}`;
+    case "job.done": return `${e.job} — ${e.status}, ${e.written}/${e.total} blanks`;
+    case "job.failed": return `${e.job} — ${e.error}`;
+    case "job.skipped": return `${e.job} — ${e.reason}`;
+    default: return "";
+  }
+}
+
+function details(e) {
+  const block = (title, text) => `<h4>${title}</h4><pre>${esc(text)}</pre>`;
+  switch (e.kind) {
+    case "request.sent":
+      return block("System prompt", e.system_prompt) + block("User prompt (verbatim)", e.user_prompt);
+    case "response.received":
+      return block("Raw reply", e.reply) +
+        block("Gateway metadata", JSON.stringify(
+          {upstream_model: e.upstream_model, provider: e.provider,
+           latency_seconds: e.latency_seconds, attempts: e.attempts, usage: e.usage}, null, 2));
+    case "parse.failed": return block("Error", e.error) + block("Unparsable reply", e.reply);
+    case "slots.detected":
+      return `<h4>Blanks</h4><table>
+        <tr><th class="mono">id</th><th>kind</th><th>where</th></tr>
+        ${e.slots.map((s) => `<tr><td class="mono">${esc(s.id)}</td><td>${esc(s.kind)}</td>
+          <td>${esc(s.hint)}</td></tr>`).join("")}</table>` +
+        block("Marked-up text sent to the model", e.marked_text);
+    case "identity.resolved": return block("Filled from config.yaml", JSON.stringify(e.answers, null, 2));
+    case "chunk.cached": case "chunk.done": return block("Answers", JSON.stringify(e.answers, null, 2));
+    case "answer.cleaned":
+      return `<h4>Adjusted before write-back</h4><table>
+        <tr><th class="mono">id</th><th>model wrote</th><th>written to file</th></tr>
+        ${Object.entries(e.changes).map(([id, c]) => `<tr><td class="mono">${esc(id)}</td>
+          <td>${esc(c.before)}</td><td>${esc(c.after)}</td></tr>`).join("")}</table>`;
+    case "document.written": return block("Every answer written", JSON.stringify(e.answers, null, 2));
+    case "request.retry": return block("Gateway error", e.error);
+    default: return block("Event", JSON.stringify(e, null, 2));
+  }
+}
+
+function addEvent(e) {
+  const el = document.createElement("details");
+  el.className = "ev " + (TONE[e.kind] || "");
+  el.innerHTML =
+    `<summary><span class="when">${clock(e.at)}</span>` +
+    `<span class="kind">${esc(e.kind)}</span>` +
+    `<span class="sum">${esc(summarise(e))}</span></summary>` +
+    `<div class="body">${details(e)}</div>`;
+  $("trace").appendChild(el);
+  el.scrollIntoView({block: "nearest"});
+}
+
+function cardFor(name) {
+  if (!jobs.has(name)) {
+    const el = document.createElement("div");
+    el.className = "card";
+    el.innerHTML = `<div class="title">${esc(name)}</div><div class="state">queued</div>
+                    <div class="bar"><i></i></div>`;
+    $("cards").appendChild(el);
+    jobs.set(name, el);
+  }
+  return jobs.get(name);
+}
+
+function updateCards(e) {
+  if (!e.job) return;
+  const card = cardFor(e.job);
+  const state = card.querySelector(".state");
+  const bar = card.querySelector(".bar > i");
+
+  if (e.kind === "slots.detected") state.textContent = `${e.total} blanks found`;
+  if (e.kind === "chunk.start") state.textContent = `asking model — request ${e.chunk}/${e.chunks}`;
+  if (e.kind === "chunk.cached") state.textContent = `cache hit — request ${e.chunk}/${e.chunks}`;
+  if (e.kind === "chunk.done" || e.kind === "chunk.cached") bar.style.width = (100 * e.chunk / e.chunks) + "%";
+  if (e.kind === "job.done") {
+    card.classList.add(e.status === "cached" ? "cached" : "ok");
+    state.textContent = `${e.status} — ${e.written}/${e.total} blanks written`;
+    bar.style.width = "100%";
+  }
+  if (e.kind === "job.failed") { card.classList.add("failed"); state.textContent = e.error; }
+  if (e.kind === "job.skipped") { card.classList.add("skipped"); state.textContent = e.reason; }
+}
+
+$("run").onclick = () => {
+  const docs = chosenDocs(), students = chosenStudents();
+  if (!docs.length || !students.length) return alert("Select at least one worksheet and one student.");
+
+  jobs.clear();
+  $("cards").innerHTML = "";
+  $("run").disabled = true;
+  $("run").textContent = "Running…";
+
+  const url = `/api/run/stream?docs=${encodeURIComponent(docs.join(","))}` +
+              `&students=${encodeURIComponent(students.join(","))}` +
+              `&no_cache=${$("nocache").checked ? "1" : "0"}`;
+  source = new EventSource(url);
+
+  source.onmessage = (msg) => {
+    const e = JSON.parse(msg.data);
+    if (e.kind === "stream.closed") return finish();
+    addEvent(e);
+    updateCards(e);
+    if (e.kind === "batch.done" || e.kind === "batch.error") loadState();
+  };
+  source.onerror = () => {
+    addEvent({kind: "batch.error", at: Date.now() / 1000,
+              error: "Stream dropped. A run may already be in progress, or the server stopped."});
+    finish();
+  };
+};
+
+function finish() {
+  if (source) { source.close(); source = null; }
+  $("run").disabled = false;
+  $("run").textContent = "Fill selected";
+  loadState();
+}
+
+loadState();
+</script>
+</body>
+</html>

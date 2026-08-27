@@ -1,0 +1,6 @@
+python-docx>=1.1.2
+requests>=2.32.0
+PyYAML>=6.0.2
+python-dotenv>=1.0.1
+Flask>=3.1.0
+pytest>=8.3.0

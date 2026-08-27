@@ -1,0 +1,66 @@
+/* @import url() FONT IMPORTS MUST ALWAYS BE AT THE VERY TOP OF THIS FILE, ABOVE THE TAILWIND IMPORTS — DO NOT DELETE THIS COMMENT */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+/* CRITICAL: THE FOLLOWING TAILWIND IMPORTS MUST NEVER BE DELETED OR REORDERED — DO NOT DELETE THIS COMMENT */
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+/* END TAILWIND IMPORTS — ALL OTHER CSS MUST GO BELOW THIS LINE */
+
+:root {
+  /* channel triplets so Tailwind opacity modifiers work */
+  --canvas: 10 11 13;
+  --surface: 16 18 22;
+  --raised: 23 26 31;
+  --line: 35 39 46;
+  --line-strong: 51 57 65;
+  --ink: 232 235 239;
+  --muted: 152 161 172;
+  --faint: 98 106 117;
+  --accent: 74 222 128;
+  --warn: 251 191 36;
+  --danger: 248 113 113;
+  --info: 96 165 250;
+}
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  background: rgb(var(--canvas));
+  color: rgb(var(--ink));
+  -webkit-font-smoothing: antialiased;
+}
+::selection {
+  background: rgb(var(--accent) / 0.18);
+}
+*:focus-visible {
+  outline: 2px solid rgb(var(--accent));
+  outline-offset: 2px;
+}
+.q-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.q-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.q-scroll::-webkit-scrollbar-thumb {
+  background: rgb(var(--line-strong));
+  border: 3px solid rgb(var(--canvas));
+  border-radius: 999px;
+}
+.q-html p {
+  margin: 0 0 0.35rem;
+}
+.q-html sub,
+.q-html sup {
+  font-size: 0.7em;
+}
+.q-html code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9em;
+  color: rgb(var(--accent));
+}
