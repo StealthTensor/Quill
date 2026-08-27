@@ -1,22 +1,20 @@
-# Worksheet filler configuration.
+# Quill configuration — copy to config.yaml and fill in your details
 # Secrets live in .env, never here.
-#
-# Copy this file to config.yaml and fill in your own students — config.yaml is gitignored.
 
 api:
   base_url: http://localhost:3001/v1   # overridden by FREELLMAPI_BASE_URL if set
   model: auto                          # "auto" lets the gateway route; "fusion" is slower but stronger
-  temperature: 0.85                    # higher = more variation between students
+  temperature: 0.85
   max_tokens: 16000
   timeout_seconds: 240
   max_retries: 4
-  retry_max_sleep_seconds: 180         # how long to honour a gateway cooldown before giving up
+  retry_max_sleep_seconds: 180
 
 run:
   input_dir: input                     # where the .docx worksheets live
   output_dir: output                   # filled copies land in output/<student>/<file>.docx
   cache_dir: .cache                    # answered worksheets are cached so re-runs are free
-  workers: 2                           # parallel requests to the gateway
+  workers: 2
   date: ""                             # blank = today's date, or set e.g. "12-08-2026"
 
 answers:
@@ -24,16 +22,15 @@ answers:
   tone: >-
     a second-year engineering student writing honestly in their own words: simple
     direct sentences, concrete everyday examples, no textbook padding
-  long_answer_words: [150, 250]        # word range for Q1/Q2/Q3-style questions
-  max_cell_chars: 220                  # keeps table answers inside the cell
-  max_slots_per_request: 20            # blanks per request; lower if the gateway times out
+  long_answer_words: [150, 250]
+  max_cell_chars: 220
+  max_slots_per_request: 20
 
 students:
-  - name: Jane Doe
-    reg_no: "RA0000000000000"
+  - name: Your Name
+    reg_no: "RA25XXXXXXXXXXX"
     branch: CSE
     section: A1
-    # persona shapes the personal answers so each student's sheet reads differently
     persona: >-
-      lives in a hostel, first in the family to study engineering, into football
-      and building small side projects, close to a younger sister back home
+      describe yourself briefly — this shapes how Quill personalizes your answers
+  # Add more students below

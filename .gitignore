@@ -7,7 +7,7 @@ client_secrets.json
 token.pickle
 build/
 dist/
-*.spec
+input/
 .DS_Store
 Thumbs.db
 
