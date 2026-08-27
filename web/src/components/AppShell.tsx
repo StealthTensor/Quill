@@ -105,15 +105,15 @@ export function AppShell({ children }: {children: React.ReactNode;}) {
         <header className="flex h-14 shrink-0 items-center gap-4 border-b border-line bg-surface px-5">
           <div className="flex min-w-0 items-center gap-3">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-accent-soft font-mono text-2xs font-bold text-accent">
-              {student.name.
-              split(' ').
-              map((w) => w[0]).
-              join('')}
+              {(student?.name ?? '?')
+              .split(' ')
+              .map((w) => w[0])
+              .join('')}
             </span>
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium leading-4 text-ink">{student.name}</p>
+              <p className="truncate text-sm font-medium leading-4 text-ink">{student?.name ?? 'Not logged in'}</p>
               <p className="truncate font-mono text-2xs text-faint">
-                {student.regNo} · {student.department} · Sem {student.semester} · {student.section}
+                {student?.regNo ?? ''} {student?.department ? `· ${student.department}` : ''} {student?.semester ? `· Sem ${student.semester}` : ''} {student?.section ? `· ${student.section}` : ''}
               </p>
             </div>
           </div>

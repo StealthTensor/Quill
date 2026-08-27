@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { PlayIcon, RotateCcwIcon, SquareIcon, Trash2Icon } from 'lucide-react';
 import { useQuill } from '../contexts/QuillContext';
 import { Button } from '../components/ui/Button';
 import { StepIndicator } from '../components/StepIndicator';
 import { JobTable } from '../components/JobTable';
 import { LogStream } from '../components/LogStream';
+import { StarGateModal } from '../components/StarGateModal';
 import { pendingSlos } from '../utils/sessions';
 
 export function Pipeline() {
@@ -22,9 +23,23 @@ export function Pipeline() {
     clearLog
   } = useQuill();
 
-  const [selStudents, setSelStudents] = useState<string[]>([students[0].id]);
+  const [selStudents, setSelStudents] = useState<string[]>(students[0] ? [students[0].id] : []);
   const [selCourses, setSelCourses] = useState<string[]>(courses.map((c) => c.code));
   const [limit, setLimit] = useState(12);
+  const [showGate, setShowGate] = useState(false);
+  const [gateChecked, setGateChecked] = useState(false);
+
+  // Update selCourses when courses load from API
+  useEffect(() => {
+    setSelCourses(courses.map((c) => c.code));
+  }, [courses]);
+
+  // Update selStudents when students load
+  useEffect(() => {
+    if (students[0] && selStudents.length === 0) {
+      setSelStudents([students[0].id]);
+    }
+  }, [students]);
 
   const toggle = (list: string[], set: (v: string[]) => void, value: string) =>
   set(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
@@ -36,8 +51,21 @@ export function Pipeline() {
   const failed = jobs.filter((j) => j.status === 'failed').length;
   const done = jobs.filter((j) => j.status === 'done').length;
 
-  const run = () =>
-  startPipeline({ studentIds: selStudents, courseCodes: selCourses, limit });
+  const handleRun = async () => {
+    if (gateChecked) {
+      startPipeline({ studentIds: selStudents, courseCodes: selCourses, limit });
+      return;
+    }
+    // Check gate from API
+    const res = await fetch('/api/stargate');
+    const gate = await res.json();
+    if (!gate.allowed) {
+      setShowGate(true);
+    } else {
+      setGateChecked(true);
+      startPipeline({ studentIds: selStudents, courseCodes: selCourses, limit });
+    }
+  };
 
   return (
     <div className="flex min-h-full flex-col">
@@ -111,7 +139,7 @@ export function Pipeline() {
                     Stop
                   </Button> :
 
-                <Button variant="primary" onClick={run} disabled={!availableJobs}>
+                <Button variant="primary" onClick={handleRun} disabled={!availableJobs && courses.length > 0}>
                     <PlayIcon className="h-4 w-4" aria-hidden />
                     Run {selCourses.length === courses.length ? 'all' : 'selected'}
                   </Button>
@@ -149,6 +177,16 @@ export function Pipeline() {
           <LogStream events={log} emptyText="Log cleared." />
         </div>
       </section>
+
+      {showGate && (
+        <StarGateModal
+          onVerified={() => {
+            setShowGate(false);
+            setGateChecked(true);
+            startPipeline({ studentIds: selStudents, courseCodes: selCourses, limit });
+          }}
+        />
+      )}
     </div>);
 
 }

@@ -98,7 +98,7 @@ export function Settings() {
         
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Registration number">
-            <input className={inputClass} defaultValue={student.regNo} />
+            <input className={inputClass} defaultValue={student?.regNo ?? ''} />
           </Field>
           <Field label="Password">
             <input className={inputClass} type="password" defaultValue="••••••••••" />
@@ -107,7 +107,7 @@ export function Settings() {
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <Button size="sm">Test connection</Button>
           <p className="font-mono text-2xs text-muted">
-            {student.name} · {student.branch} · {student.section} · sem {student.semester}
+            {student?.name ?? 'Not logged in'} {student?.branch ? `· ${student.branch}` : ''} {student?.section ? `· ${student.section}` : ''} {student?.semester ? `· sem ${student.semester}` : ''}
           </p>
         </div>
       </SettingsSection>

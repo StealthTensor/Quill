@@ -8,7 +8,7 @@ type TestState = 'idle' | 'testing' | 'ok' | 'error';
 
 export function Login() {
   const { signIn, student, gateway, drive, setDrive, pushLog } = useQuill();
-  const [regNo, setRegNo] = useState(student.regNo);
+  const [regNo, setRegNo] = useState(student?.regNo ?? '');
   const [password, setPassword] = useState('••••••••••');
   const [test, setTest] = useState<TestState>('idle');
   const [driveBusy, setDriveBusy] = useState(false);
@@ -24,18 +24,26 @@ export function Login() {
     }
   };
 
-  const runTest = () => {
+  const runTest = async () => {
     setTest('testing');
     pushLog('srm.login', `POST /login as ${regNo}`, 'info');
-    window.setTimeout(() => {
-      const ok = regNo.trim().length > 8 && password.length > 3;
-      setTest(ok ? 'ok' : 'error');
-      pushLog(
-        ok ? 'srm.ok' : 'srm.error',
-        ok ? `Authenticated as ${student.name}` : 'SRM rejected credentials (401)',
-        ok ? 'success' : 'error'
-      );
-    }, 1100);
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: regNo, password })
+      });
+      if (res.ok) {
+        setTest('ok');
+        pushLog('srm.ok', `Authenticated successfully`, 'success');
+      } else {
+        setTest('error');
+        pushLog('srm.error', 'SRM rejected credentials (401)', 'error');
+      }
+    } catch {
+      setTest('error');
+      pushLog('srm.error', 'Could not reach SRM portal', 'error');
+    }
   };
 
   const authorizeDrive = async () => {
@@ -125,7 +133,7 @@ export function Login() {
                 <p aria-live="polite" className="min-w-0 font-mono text-2xs">
                   {test === 'ok' &&
                   <span className="text-accent">
-                      {student.name} · {student.department} · sem {student.semester}
+                      {student?.name ?? regNo} · {student?.department ?? ''} · sem {student?.semester ?? ''}
                     </span>
                   }
                   {test === 'error' && <span className="text-danger">401 — check credentials</span>}

@@ -45,7 +45,7 @@ function Routed() {
 
 }
 
-export function App({ startSignedIn = true }: {startSignedIn?: boolean;}) {
+export function App({ startSignedIn = false }: {startSignedIn?: boolean;}) {
   return (
     <div className="h-full w-full bg-canvas">
       <BrowserRouter>

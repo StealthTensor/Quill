@@ -238,7 +238,7 @@ export function QuillProvider({
       setJobs([
       {
         id: uid('job'),
-        studentName: students[0].name,
+        studentName: students[0]?.name ?? 'Student',
         courseCode,
         session,
         slo,
@@ -323,9 +323,9 @@ export function QuillProvider({
 
   const value: QuillValue = {
     authed,
-    signIn: () => setAuthed(true),
-    signOut: () => setAuthed(false),
-    student: students[0],
+    signIn,
+    signOut: () => { setAuthed(false); setSrm('disconnected'); setCourses([]); setStudents([]); },
+    student: students[0] ?? null,
     students,
     courses,
     srm,
