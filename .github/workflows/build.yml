@@ -8,8 +8,18 @@ on:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            artifact_name: Quill-linux
+            zip_name: Quill-linux.zip
+          - os: windows-latest
+            artifact_name: Quill-windows
+            zip_name: Quill-windows.zip
+          - os: macos-latest
+            artifact_name: Quill-macos
+            zip_name: Quill-macos.zip
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -30,19 +40,42 @@ jobs:
         cd web
         npm ci
         npm run build
-      
+
     - name: Install Python Dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install pyinstaller pywebview fastapi uvicorn requests google-auth-oauthlib google-api-python-client python-docx
 
-    - name: Build Executable with PyInstaller
+    - name: Build Executable (Linux/macOS)
+      if: runner.os != 'Windows'
       run: |
-        pyinstaller --name Quill --windowed --add-data "web/dist${{ matrix.os == 'windows-latest' && ';' || ':' }}web/dist" desktop.py
+        pyinstaller Quill.spec
 
-    - name: Upload Artifact
+    - name: Build Executable (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        pyinstaller Quill.spec
+
+    - name: Package (Linux/macOS)
+      if: runner.os != 'Windows'
+      run: |
+        cd dist
+        zip -r ../${{ matrix.zip_name }} Quill/
+
+    - name: Package (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        Compress-Archive -Path dist\Quill -DestinationPath ${{ matrix.zip_name }}
+
+    - name: Upload to Release
+      uses: softprops/action-gh-release@v2
+      if: github.event_name == 'release'
+      with:
+        files: ${{ matrix.zip_name }}
+
+    - name: Upload Workflow Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: Quill-${{ matrix.os }}
-        path: dist/Quill*
+        name: ${{ matrix.artifact_name }}
+        path: ${{ matrix.zip_name }}
