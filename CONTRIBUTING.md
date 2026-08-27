@@ -13,6 +13,7 @@ cd Quill
 python3 -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
+cp config.example.yaml config.yaml   # ← fill in your details
 
 # Frontend
 cd web
@@ -38,7 +39,8 @@ Quill/
 │       ├── components/ # Reusable UI components
 │       └── contexts/   # QuillContext (state management)
 ├── desktop.py          # PyWebView desktop wrapper
-└── config.yaml         # Student profiles + LLM config
+├── config.example.yaml # Example configuration (copy to config.yaml)
+└── config.yaml         # Your configuration (gitignored — contains your reg no)
 ```
 
 ## What Can You Contribute?
