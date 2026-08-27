@@ -1,5 +1,7 @@
 # Worksheet filler configuration.
 # Secrets live in .env, never here.
+#
+# Copy this file to config.yaml and fill in your own students — config.yaml is gitignored.
 
 api:
   base_url: http://localhost:3001/v1   # overridden by FREELLMAPI_BASE_URL if set
@@ -27,26 +29,10 @@ answers:
   max_slots_per_request: 20            # blanks per request; lower if the gateway times out
 
 students:
-  - name: R Trinai
-    reg_no: "RA2511003011839"
+  - name: Jane Doe
+    reg_no: "RA0000000000000"
     branch: CSE
-    section: J2
-    # persona shapes the personal answers so each student's sheet reads differently
-    persona: >-
-      lives in a hostel, first in the family to study engineering, into football
-      and building small side projects, close to a younger sister back home
-  - name: M Hemanth Kumar
-    reg_no: "RA2511003011829"
-    branch: CSE
-    section: J2
-    # persona shapes the personal answers so each student's sheet reads differently
-    persona: >-
-      lives in a hostel, first in the family to study engineering, into football
-      and building small side projects, close to a younger sister back home
-  - name: B Sasi Vardan
-    reg_no: "RA2511003011858"
-    branch: CSE
-    section: J2
+    section: A1
     # persona shapes the personal answers so each student's sheet reads differently
     persona: >-
       lives in a hostel, first in the family to study engineering, into football
