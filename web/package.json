@@ -1,6 +1,6 @@
 {
-  "name": "magic-patterns-vite-template",
-  "version": "0.0.1",
+  "name": "quill",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {

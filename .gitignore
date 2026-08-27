@@ -1,6 +1,7 @@
 venv/
 __pycache__/
 *.pyc
+*.pyo
 .env
 client_secrets.json
 token.pickle
@@ -8,8 +9,31 @@ build/
 dist/
 *.spec
 .DS_Store
+Thumbs.db
 
-# React/Web
+# Cloned repos (dev only)
+battleship/
+
+# Zip artifacts
+*.zip
+
+# Node
+node_modules/
 web/node_modules/
 web/dist/
 web/.env
+
+# Output artifacts (user-generated)
+output/
+cache/
+~$*.docx
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.Spotlight-V100
+.Trashes

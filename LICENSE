@@ -1,0 +1,32 @@
+GNU AFFERO GENERAL PUBLIC LICENSE
+Version 3, 19 November 2007
+
+Copyright (c) 2026 StealthTensor
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+Additional Terms:
+
+1. You may not use this software or any derivative works for commercial
+   purposes without explicit written permission from the copyright holder.
+
+2. Any modifications or derivative works must be distributed under this
+   same license and must clearly attribute the original author.
+
+3. If you deploy a modified version of this software as a network service,
+   you must make the complete source code of your modified version available
+   to users of that service under the terms of this license.
+
+For the full text of the AGPL-3.0 license, see:
+https://www.gnu.org/licenses/agpl-3.0.en.html

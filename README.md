@@ -1,44 +1,193 @@
 <div align="center">
-  <h1>🪶 Quill</h1>
-  <p><b>Your coursework, on autopilot.</b></p>
-  <p>
-    <a href="https://github.com/yourusername/quill/releases/latest">Download for Windows</a> • 
-    <a href="https://github.com/yourusername/quill/releases/latest">Download for Mac</a> •
-    <a href="#how-it-works">How it works</a>
-  </p>
+
+# 🪶 Quill
+
+### Your university coursework, on autopilot.
+
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![GitHub stars](https://img.shields.io/github/stars/StealthTensor/Quill?style=social)](https://github.com/StealthTensor/Quill/stargazers)
+[![Downloads](https://img.shields.io/github/downloads/StealthTensor/Quill/total)](https://github.com/StealthTensor/Quill/releases)
+
+**Quill reverse-engineers your university portal, generates answers with AI, fills your worksheets, uploads them to Google Drive, and submits everything — automatically.**
+
+[⬇ Download](#-quick-start) · [📖 How it Works](#-how-it-works) · [🤝 Contributing](CONTRIBUTING.md)
+
+---
+
+<!-- Replace this with an actual demo GIF once you record one -->
+<!-- ![Quill Demo](assets/demo.gif) -->
+
 </div>
 
-<br/>
+## The Problem
 
-Quill is a zero-configuration desktop app that automates the busywork of university portals. We reverse-engineered the SRM Academia backend to create a unified pipeline that automatically scans for pending work, generates answers using AI, fills `.docx` templates, uploads them to Google Drive, and submits the links—all with a single click.
+Every week, you log into your university portal, download worksheet templates, manually type answers into Word documents, upload them to Google Drive, copy the link, paste it back into the portal, and click submit. **For every single session. For every single course.**
+
+That's 50+ hours of busywork per semester.
+
+## The Solution
+
+Quill does all of it in one click.
+
+```
+You click "Run All" → Quill handles the rest → You go touch grass 🌿
+```
 
 ## ✨ Features
-* **Zero Config Desktop App:** Available as a standalone `.exe`, `.dmg`, or AppImage. No terminal required.
-* **Intelligent Auto-Solve:** Powered by local LLM gateways (or standard cloud models) to accurately generate short and long answers.
-* **Native Google Drive OAuth:** Automatically manages a `/Quill` folder in your personal Drive.
-* **Live Telemetry:** Watch the pipeline work in real-time through a beautiful, clean React dashboard.
+
+| Feature | Description |
+|---|---|
+| 🔍 **Auto-Scan** | Detects all pending worksheets and MCQs across every course |
+| 🧠 **AI Answers** | Generates contextual, high-quality answers using local or cloud LLMs |
+| 📝 **Doc Filler** | Fills `.docx` templates with proper formatting — not copy-paste slop |
+| ☁️ **Drive Upload** | OAuth into your Google account, auto-creates `/Quill` folder, uploads with share links |
+| 📮 **Auto-Submit** | Submits the Drive link directly to the university portal |
+| ✅ **MCQ Solver** | Fetches MCQs, solves them with AI, submits scores |
+| 📊 **Live Dashboard** | Watch the pipeline work in real-time through a clean React UI |
+| 🖥️ **Desktop App** | Native window — no browser tabs, no terminal required |
 
 ## 🚀 Quick Start
-1. Go to the [Releases](https://github.com/yourusername/quill/releases/latest) page and download the executable for your OS.
-2. Open the app and click **Connect Google Drive**.
-3. Log in with your university ID.
-4. Click **Run All**. The app will do the rest.
 
-## 🛠️ How it Works (Under the Hood)
-Quill is built with a modern stack designed for speed and reliability:
-* **UI:** Next.js / Vite React app styled with Tailwind.
-* **Desktop Wrapper:** `pywebview` bounding a native OS window without electron bloat.
-* **Backend:** FastAPI handling concurrent requests and SSE (Server-Sent Events) for live logging.
-* **Engine:** Custom Python scraper with HTTPAdapter retries to gracefully handle the university portal's frequent 504 timeouts.
+### Option 1: Download the App (Recommended)
+Go to [**Releases**](https://github.com/StealthTensor/Quill/releases/latest) and download for your OS:
+- **Windows** → `Quill-windows.exe`
+- **macOS** → `Quill-macos.dmg`
+- **Linux** → `Quill-linux.AppImage`
 
-### The Pipeline
-`Scan Portal -> Extract Blank Slots -> Query LLM -> Write .docx -> OAuth Drive Upload -> Submit Link`
+Open. Login. Click Run All. Done.
+
+### Option 2: Run from Source
+```bash
+# Clone
+git clone https://github.com/StealthTensor/Quill.git && cd Quill
+
+# Backend
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env   # add your LLM API key
+
+# Frontend
+cd web && npm install && npm run build && cd ..
+
+# Launch
+python3 desktop.py
+```
+
+## 🛠 How it Works
+
+```mermaid
+graph LR
+    A[📋 Scan Portal] --> B[🧠 Generate Answers]
+    B --> C[📝 Fill .docx]
+    C --> D[☁️ Upload to Drive]
+    D --> E[📮 Submit to Portal]
+    E --> F[✅ Done]
+
+    style A fill:#1a1a2e,stroke:#4ade80,color:#e8ebef
+    style B fill:#1a1a2e,stroke:#4ade80,color:#e8ebef
+    style C fill:#1a1a2e,stroke:#4ade80,color:#e8ebef
+    style D fill:#1a1a2e,stroke:#4ade80,color:#e8ebef
+    style E fill:#1a1a2e,stroke:#4ade80,color:#e8ebef
+    style F fill:#1a1a2e,stroke:#4ade80,color:#e8ebef
+```
+
+### Architecture
+
+```
+Quill/
+├── core/                   # The engine
+│   ├── srm_client.py       # Portal API (reverse-engineered, retry-hardened)
+│   ├── gdrive.py           # Google Drive OAuth + upload
+│   ├── orchestrator.py     # Master pipeline: scan → fill → upload → submit
+│   └── stargate.py         # Star verification
+├── api/
+│   └── main.py             # FastAPI backend (SSE streaming)
+├── worksheetfiller/        # LLM answer generation
+│   ├── runner.py           # Job orchestration with caching
+│   ├── prompts.py          # Prompt engineering
+│   ├── llm.py              # LLM client with retry + quota management
+│   └── writer.py           # .docx template writer
+├── web/                    # React + Tailwind dashboard
+│   └── src/
+│       ├── pages/          # Dashboard, Pipeline, Login, MCQ Solver, Settings
+│       ├── components/     # UI components + StarGateModal
+│       └── contexts/       # QuillContext (real-time state via SSE)
+├── desktop.py              # PyWebView native wrapper
+└── config.yaml             # Student profiles + LLM settings
+```
+
+### Tech Stack
+
+| Layer | Technology |
+|---|---|
+| **Desktop** | PyWebView (native OS window, zero Electron bloat) |
+| **Frontend** | React 18 + TypeScript + Tailwind CSS + Vite |
+| **Backend** | FastAPI + Server-Sent Events for real-time streaming |
+| **AI Engine** | Any OpenAI-compatible LLM (local or cloud) |
+| **Portal** | Reverse-engineered REST API with retry adapters for 504s |
+| **Storage** | Google Drive OAuth2 (user's own Drive, infinite scaling) |
+| **Build** | PyInstaller + GitHub Actions CI/CD (auto-builds for Win/Mac/Linux) |
+
+## 🔧 Configuration
+
+Edit `config.yaml` to set up students:
+```yaml
+students:
+  - name: "Your Name"
+    reg_no: "RA2511003XXXXXX"
+    department: "CSE"
+    section: "A"
+    semester: 4
+
+api:
+  model: "fusion"
+  temperature: 0.4
+
+answers:
+  language: "English"
+  tone: "plain-technical"
+  short_answer_words: "60-90"
+  long_answer_words: "220-320"
+```
+
+## 🗺 Roadmap
+
+- [x] SRM portal automation
+- [x] AI worksheet filler
+- [x] Google Drive OAuth upload
+- [x] Desktop app (Windows/Mac/Linux)
+- [x] Live streaming dashboard
+- [x] MCQ auto-solver
+- [ ] Multi-university support (VIT, Anna Univ, etc.)
+- [ ] Mobile app (React Native)
+- [ ] Browser extension
+- [ ] Telegram bot integration
+- [ ] Grade prediction analytics
 
 ## 🤝 Contributing
-Want to add support for a new university portal? PRs are welcome! 
-1. Fork the repo.
-2. Run `npm install` in `/web` and `pip install -r requirements.txt` in the root.
-3. Submit a PR against the `main` branch.
+
+We'd love your help! See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions.
+
+**Ideas that would make this blow up:**
+- Add support for your own university's portal
+- Improve LLM prompt quality for specific subjects
+- Build the Telegram bot integration
+- Record a demo video for the README
 
 ## ⚠️ Disclaimer
-This tool is built for **educational purposes and workflow automation research**. You are responsible for ensuring that your use of this software complies with your institution's academic integrity policies.
+
+This tool is built for **educational purposes and workflow automation research.** You are responsible for ensuring that your use complies with your institution's academic integrity policies. The developers are not responsible for any misuse or consequences arising from the use of this software.
+
+## 📄 License
+
+[AGPL-3.0](LICENSE) — free to use, modify, and distribute under the same license. No commercial use without permission.
+
+---
+
+<div align="center">
+
+**If Quill saved you time, consider giving it a ⭐**
+
+Built with frustration and too many 504 Gateway Timeouts.
+
+</div>
