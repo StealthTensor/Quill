@@ -143,8 +143,7 @@ Quill/
 ├── core/                   # Python backend engine
 │   ├── srm_client.py       # Portal API wrapper (reverse-engineered)
 │   ├── gdrive.py           # Google Drive OAuth + upload
-│   ├── orchestrator.py     # Master pipeline: scan → fill → upload → submit
-│   └── stargate.py         # Star verification
+│   └── orchestrator.py     # Master pipeline: scan → fill → upload → submit
 ├── api/
 │   └── main.py             # FastAPI routes + SSE streaming
 ├── worksheetfiller/        # LLM answer generation engine

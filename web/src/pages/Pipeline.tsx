@@ -5,7 +5,6 @@ import { Button } from '../components/ui/Button';
 import { StepIndicator } from '../components/StepIndicator';
 import { JobTable } from '../components/JobTable';
 import { LogStream } from '../components/LogStream';
-import { StarGateModal } from '../components/StarGateModal';
 import { pendingSlos } from '../utils/sessions';
 
 export function Pipeline() {
@@ -26,8 +25,6 @@ export function Pipeline() {
   const [selStudents, setSelStudents] = useState<string[]>(students[0] ? [students[0].id] : []);
   const [selCourses, setSelCourses] = useState<string[]>(courses.map((c) => c.code));
   const [limit, setLimit] = useState(12);
-  const [showGate, setShowGate] = useState(false);
-  const [gateChecked, setGateChecked] = useState(false);
 
   // Update selCourses when courses load from API
   useEffect(() => {
@@ -51,21 +48,10 @@ export function Pipeline() {
   const failed = jobs.filter((j) => j.status === 'failed').length;
   const done = jobs.filter((j) => j.status === 'done').length;
 
-  const handleRun = async () => {
-    if (gateChecked) {
-      startPipeline({ studentIds: selStudents, courseCodes: selCourses, limit });
-      return;
-    }
-    // Check gate from API
-    const res = await fetch('/api/stargate');
-    const gate = await res.json();
-    if (!gate.allowed) {
-      setShowGate(true);
-    } else {
-      setGateChecked(true);
-      startPipeline({ studentIds: selStudents, courseCodes: selCourses, limit });
-    }
+  const handleRun = () => {
+    startPipeline({ studentIds: selStudents, courseCodes: selCourses, limit });
   };
+
 
   return (
     <div className="flex min-h-full flex-col">
@@ -177,16 +163,6 @@ export function Pipeline() {
           <LogStream events={log} emptyText="Log cleared." />
         </div>
       </section>
-
-      {showGate && (
-        <StarGateModal
-          onVerified={() => {
-            setShowGate(false);
-            setGateChecked(true);
-            startPipeline({ studentIds: selStudents, courseCodes: selCourses, limit });
-          }}
-        />
-      )}
     </div>);
 
 }

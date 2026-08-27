@@ -1,8 +1,7 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import asyncio
 import sys
 import os
 
@@ -11,7 +10,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.srm_client import SRMClient
 from core.gdrive import GDriveClient
 from core.orchestrator import Orchestrator
-from core.stargate import record_first_launch, gate_check, save_github_username, get_github_username
 
 app = FastAPI()
 
@@ -25,9 +23,6 @@ app.add_middleware(
 
 srm_client = SRMClient()
 gdrive_client = GDriveClient()
-
-# Record first launch for star-gate grace period
-record_first_launch()
 
 
 # ── Models ────────────────────────────────────────────────────────────────────
@@ -45,9 +40,6 @@ class PipelineScopeRequest(BaseModel):
     studentIds: list[str] = []
     courseCodes: list[str] = []
     limit: int = 999
-
-class GithubUsernameRequest(BaseModel):
-    username: str
 
 
 # ── State ─────────────────────────────────────────────────────────────────────
@@ -88,16 +80,11 @@ def get_state():
                     "branch": u.get("DEPARTMENT", ""),
                 }]
 
-    # Star-gate status
-    github_user = get_github_username()
-    gate = gate_check(github_user)
-
     return {
         "courses": courses,
         "students": students,
         "srm": "connected" if srm_client.auth_token else "disconnected",
         "drive": "connected" if gdrive_client.is_authenticated() else "disconnected",
-        "stargate": gate,
     }
 
 
@@ -122,50 +109,20 @@ def drive_auth():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── Star-gate ─────────────────────────────────────────────────────────────────
-
-@app.get("/api/stargate")
-def stargate_status():
-    github_user = get_github_username()
-    return gate_check(github_user)
-
-
-@app.post("/api/stargate/username")
-def set_github_username(req: GithubUsernameRequest):
-    save_github_username(req.username)
-    github_user = req.username
-    gate = gate_check(github_user)
-    return gate
-
-
 # ── Pipeline ──────────────────────────────────────────────────────────────────
 
 @app.post("/api/run/stream")
 async def run_stream(scope: PipelineScopeRequest):
-    # Gate check before running
-    github_user = get_github_username()
-    gate = gate_check(github_user)
-    if not gate.get("allowed"):
-        async def blocked():
-            yield f"event: gate_blocked\ndata: star_needed\n\n"
-        return StreamingResponse(blocked(), media_type="text/event-stream")
-
     orchestrator = Orchestrator(srm_client, gdrive_client)
     return StreamingResponse(
         orchestrator.run_pipeline(scope=scope.model_dump()),
         media_type="text/event-stream",
     )
 
+
 # Also support GET for EventSource (browser EventSource only does GET)
 @app.get("/api/run/stream")
 async def run_stream_get(limit: int = 999):
-    github_user = get_github_username()
-    gate = gate_check(github_user)
-    if not gate.get("allowed"):
-        async def blocked():
-            yield f"event: gate_blocked\ndata: star_needed\n\n"
-        return StreamingResponse(blocked(), media_type="text/event-stream")
-
     orchestrator = Orchestrator(srm_client, gdrive_client)
     return StreamingResponse(
         orchestrator.run_pipeline(scope={"limit": limit}),
