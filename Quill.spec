@@ -3,7 +3,7 @@
 
 a = Analysis(
     ['desktop.py'],
-    pathex=[],
+    pathex=['/usr/lib/python3/dist-packages'],
     binaries=[],
     datas=[('web/dist', 'web/dist')],
     hiddenimports=[
@@ -40,6 +40,7 @@ a = Analysis(
     noarchive=False,
     optimize=0,
 )
+
 pyz = PYZ(a.pure)
 
 exe = EXE(
