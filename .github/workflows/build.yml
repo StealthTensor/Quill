@@ -59,6 +59,7 @@ jobs:
     - name: Package (Linux)
       if: runner.os == 'Linux'
       run: |
+        sudo apt-get update && sudo apt-get install -y libfuse2
         wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
         chmod +x appimagetool
         mkdir -p AppDir/usr/bin
