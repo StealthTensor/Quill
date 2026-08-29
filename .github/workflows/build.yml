@@ -56,8 +56,28 @@ jobs:
       run: |
         pyinstaller Quill.spec
 
-    - name: Package (Linux/macOS)
-      if: runner.os != 'Windows'
+    - name: Package (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
+        chmod +x appimagetool
+        mkdir -p AppDir/usr/bin
+        cp -r dist/Quill/* AppDir/usr/bin/
+        cat > AppDir/Quill.desktop << 'EOF'
+        [Desktop Entry]
+        Name=Quill
+        Exec=Quill
+        Icon=quill
+        Type=Application
+        Categories=Education;
+        EOF
+        cp web/public/logo.jpg AppDir/quill.png || true
+        ln -s usr/bin/Quill AppDir/AppRun
+        ./appimagetool AppDir Quill-linux.AppImage
+        mv Quill-linux.AppImage ${{ matrix.zip_name }} # renaming for upload artifact step compatibility
+
+    - name: Package (macOS)
+      if: runner.os == 'macOS'
       run: |
         cd dist
         zip -r ../${{ matrix.zip_name }} Quill/
