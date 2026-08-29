@@ -30,8 +30,31 @@ export function Dashboard() {
     navigate('/pipeline');
   };
 
+  const [updateAvailable, setUpdateAvailable] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    fetch('https://api.github.com/repos/StealthTensor/Quill/releases/latest')
+      .then(res => res.json())
+      .then(data => {
+        const currentVersions = ['v0.4.1', 'v1.0.0'];
+        if (data.tag_name && !currentVersions.includes(data.tag_name)) {
+          setUpdateAvailable(data.tag_name);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <div className="mx-auto max-w-[1400px] px-5 py-6 lg:px-8">
+      {updateAvailable && (
+        <div className="mb-6 flex items-center justify-between rounded-lg border border-danger/20 bg-danger-soft px-4 py-3 text-sm text-danger">
+          <p>Update required. Quill <strong>{updateAvailable}</strong> is available and fixes portal breaking changes.</p>
+          <a href="https://github.com/StealthTensor/Quill/releases/latest" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 font-semibold hover:underline">
+            Download update <ExternalLinkIcon className="h-3.5 w-3.5" />
+          </a>
+        </div>
+      )}
+
       <section className="flex flex-col gap-6 border-b border-line pb-7 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="font-mono text-2xs uppercase tracking-widest text-faint">pending worksheets</p>
