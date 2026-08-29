@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quill | Your coursework, on autopilot</title>
+    <link rel="icon" type="image/jpeg" href="assets/logo.jpg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        canvas: 'rgb(10 11 13)',
+                        surface: 'rgb(16 18 22)',
+                        raised: 'rgb(23 26 31)',
+                        line: 'rgb(35 39 46)',
+                        ink: 'rgb(232 235 239)',
+                        muted: 'rgb(152 161 172)',
+                        accent: 'rgb(74 222 128)',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: rgb(10 11 13); color: rgb(232 235 239); }
+    </style>
+</head>
+<body class="antialiased selection:bg-accent/20">
+
+    <nav class="border-b border-line bg-surface/50 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <img src="assets/logo.jpg" alt="Quill Logo" class="w-8 h-8 rounded shadow-sm">
+                <span class="font-mono font-bold text-lg tracking-tight">quill</span>
+            </div>
+            <div class="flex items-center gap-6 text-sm font-medium">
+                <a href="#features" class="text-muted hover:text-ink transition-colors">Features</a>
+                <a href="https://github.com/StealthTensor/Quill" target="_blank" class="text-muted hover:text-ink transition-colors">GitHub</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-5xl mx-auto px-6 py-24">
+        <div class="text-center max-w-3xl mx-auto">
+            <h1 class="text-5xl sm:text-6xl font-bold tracking-tight mb-6">Your coursework,<br><span class="text-accent">on autopilot.</span></h1>
+            <p class="text-lg text-muted mb-10 leading-relaxed">
+                Quill reverse-engineers the SRM portal, uses AI to generate answers matching your personal writing style, fills out the Word templates, uploads them to Google Drive, and auto-submits the links. <strong>50+ hours of busywork, gone.</strong>
+            </p>
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <a href="https://github.com/StealthTensor/Quill/releases/latest" class="flex items-center gap-2 bg-accent text-canvas font-semibold px-6 py-3 rounded-lg hover:bg-accent/90 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    Download for Windows
+                </a>
+                <a href="https://github.com/StealthTensor/Quill/releases/latest" class="flex items-center gap-2 bg-raised border border-line text-ink font-semibold px-6 py-3 rounded-lg hover:bg-line transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    Mac / Linux
+                </a>
+            </div>
+            <p class="font-mono text-xs text-muted mt-6">Version 1.0.0 &middot; Open Source &middot; 100% Free</p>
+        </div>
+
+        <div id="features" class="mt-32">
+            <h2 class="text-center font-mono text-sm tracking-widest text-muted uppercase mb-12">How it works</h2>
+            <div class="grid md:grid-cols-3 gap-6">
+                
+                <div class="bg-surface border border-line p-6 rounded-xl">
+                    <div class="w-10 h-10 rounded bg-raised border border-line flex items-center justify-center mb-4 text-accent">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    </div>
+                    <h3 class="font-semibold mb-2">1. Auto-Scan</h3>
+                    <p class="text-sm text-muted">Bypasses portal 504 timeouts to scrape all pending worksheets and MCQs across every course.</p>
+                </div>
+
+                <div class="bg-surface border border-line p-6 rounded-xl">
+                    <div class="w-10 h-10 rounded bg-raised border border-line flex items-center justify-center mb-4 text-accent">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+                    </div>
+                    <h3 class="font-semibold mb-2">2. AI Personas</h3>
+                    <p class="text-sm text-muted">Generates contextual answers using LLMs configured to match your specific writing style and tone.</p>
+                </div>
+
+                <div class="bg-surface border border-line p-6 rounded-xl">
+                    <div class="w-10 h-10 rounded bg-raised border border-line flex items-center justify-center mb-4 text-accent">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                    </div>
+                    <h3 class="font-semibold mb-2">3. Drive Sync & Submit</h3>
+                    <p class="text-sm text-muted">Fills the native .docx, uploads it to your Google Drive via OAuth, and submits the link to the portal.</p>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <footer class="border-t border-line mt-20 bg-surface/30">
+        <div class="max-w-5xl mx-auto px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4">
+            <p class="text-sm text-muted">© 2026 Quill. Built for SRM Students.</p>
+            <div class="flex gap-4 text-sm text-muted">
+                <a href="privacy.html" class="hover:text-ink">Privacy Policy</a>
+                <a href="tos.html" class="hover:text-ink">Terms of Service</a>
+                <a href="https://github.com/StealthTensor/Quill" class="hover:text-ink">Source Code</a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>
