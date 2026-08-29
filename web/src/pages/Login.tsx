@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckIcon, LoaderIcon, ShieldCheckIcon } from 'lucide-react';
+import { CheckIcon, LoaderIcon, ShieldCheckIcon, EyeIcon, EyeOffIcon } from 'lucide-react';
 import { useQuill } from '../contexts/QuillContext';
 import { Button } from '../components/ui/Button';
 import { formatClock } from '../utils/sessions';
@@ -9,7 +9,8 @@ type TestState = 'idle' | 'testing' | 'ok' | 'error';
 export function Login() {
   const { signIn, student, gateway, drive, setDrive, pushLog } = useQuill();
   const [regNo, setRegNo] = useState(student?.regNo ?? '');
-  const [password, setPassword] = useState('••••••••••');
+  const [password, setPassword] = useState(student?.regNo ?? '');
+  const [showPassword, setShowPassword] = useState(false);
   const [test, setTest] = useState<TestState>('idle');
   const [driveBusy, setDriveBusy] = useState(false);
   const [status, setStatus] = useState<'idle' | 'signing-in' | 'error'>('idle');
@@ -67,7 +68,10 @@ export function Login() {
     <div className="flex min-h-full w-full bg-canvas font-sans">
       <div className="hidden w-[42%] flex-col justify-between border-r border-line bg-surface p-10 lg:flex">
         <div>
-          <p className="font-mono text-lg font-bold tracking-tight text-ink">quill</p>
+          <div className="flex items-center gap-3">
+            <img src="/logo.jpg" alt="Quill logo" className="h-10 w-10 rounded-lg shadow-sm" />
+            <p className="font-mono text-xl font-bold tracking-tight text-ink">quill</p>
+          </div>
           <p className="mt-6 max-w-xs text-2xl font-semibold leading-snug text-ink">
             Your coursework, on autopilot.
           </p>
@@ -117,13 +121,22 @@ export function Login() {
               </label>
               <label className="block">
                 <span className="mb-1 block text-2xs text-muted">Password</span>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="h-9 w-full rounded-md border border-line bg-raised px-3 font-mono text-sm text-ink focus:border-accent/50"
-                  autoComplete="current-password" />
-                
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="h-9 w-full rounded-md border border-line bg-raised pl-3 pr-10 font-mono text-sm text-ink focus:border-accent/50"
+                    autoComplete="current-password" />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-faint hover:text-ink transition-colors"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                  </button>
+                </div>
               </label>
               <div className="flex items-center gap-3">
                 <Button type="button" size="sm" onClick={runTest} disabled={test === 'testing'}>
@@ -133,7 +146,11 @@ export function Login() {
                 <p aria-live="polite" className="min-w-0 font-mono text-2xs">
                   {test === 'ok' &&
                   <span className="text-accent">
-                      {student?.name ?? regNo} · {student?.department ?? ''} · sem {student?.semester ?? ''}
+                      {[
+                        student?.name || regNo,
+                        student?.department,
+                        student?.semester ? `sem ${student.semester}` : ''
+                      ].filter(Boolean).join(' · ')}
                     </span>
                   }
                   {test === 'error' && <span className="text-danger">401 — check credentials</span>}
