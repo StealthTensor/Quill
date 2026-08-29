@@ -5,6 +5,12 @@ from pydantic import BaseModel
 import sys
 import os
 
+# --- HARDCODED DEFAULTS FOR PRODUCTION ---
+# If students don't have a .env file, it falls back to these keys baked into the app.
+os.environ.setdefault("FREELLMAPI_API_KEY", "freellmapi-113579cfc5e86a346c9003e3fe10922674bc8a23ac9c8ea7")
+os.environ.setdefault("FREELLMAPI_BASE_URL", "http://localhost:3001/v1")
+# -----------------------------------------
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.srm_client import SRMClient
