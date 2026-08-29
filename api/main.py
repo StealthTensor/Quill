@@ -85,6 +85,7 @@ def get_state():
         "students": students,
         "srm": "connected" if srm_client.auth_token else "disconnected",
         "drive": "connected" if gdrive_client.is_authenticated() else "disconnected",
+        "gateway": "connected" if os.environ.get("FREELLMAPI_API_KEY") else "disconnected",
     }
 
 

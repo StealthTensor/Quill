@@ -191,7 +191,16 @@ export function Login() {
               </span>
             </div>
 
-            <Button variant="primary" type="submit" className="mt-2 w-full">
+            <Button
+              variant="primary"
+              type="submit"
+              disabled={test !== 'ok' || drive !== 'connected' || gateway !== 'connected'}
+              className={`mt-2 w-full transition-all duration-300 ${
+                test === 'ok' && drive === 'connected' && gateway === 'connected'
+                  ? ''
+                  : 'opacity-50 grayscale cursor-not-allowed hover:bg-transparent'
+              }`}
+            >
               <ShieldCheckIcon className="h-4 w-4" aria-hidden />
               Enter dashboard
             </Button>

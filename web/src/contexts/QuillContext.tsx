@@ -88,10 +88,12 @@ export function QuillProvider({
   useEffect(() => {
     fetch('/api/state').then(r => r.json()).then(data => {
       setCourses(data.courses || []);
-      setStudents(data.students || []);
-      if (data.students?.length > 0 && data.courses?.length > 0) {
-        setSrm('connected');
+      if (data.students?.length) {
+        setStudents(data.students);
       }
+      setSrm(data.srm ?? 'disconnected');
+      setDrive(data.drive ?? 'disconnected');
+      setGateway(data.gateway ?? 'disconnected');
     }).catch(err => console.error("Failed to fetch state", err));
   }, []);
 
