@@ -107,7 +107,12 @@ export function Settings() {
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <Button size="sm">Test connection</Button>
           <p className="font-mono text-2xs text-muted">
-            {student?.name ?? 'Not logged in'} {student?.branch ? `· ${student.branch}` : ''} {student?.section ? `· ${student.section}` : ''} {student?.semester ? `· sem ${student.semester}` : ''}
+            {student ? [
+              student.name || 'Not logged in',
+              student.branch,
+              student.section,
+              student.semester ? `sem ${student.semester}` : ''
+            ].filter(Boolean).join(' · ') : 'Not logged in'}
           </p>
         </div>
       </SettingsSection>
