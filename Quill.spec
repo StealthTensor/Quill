@@ -1,23 +1,25 @@
 # -*- mode: python ; coding: utf-8 -*-
-
+#
+# gi (GTK) is a system library — do NOT bundle it.
+# The binary requires system GTK at runtime: libgtk-3, python3-gi, gir1.2-webkit2-4.0
+# Install with: sudo apt install python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.0
+#
+# pathex is empty — adding system dist-packages there causes old system
+# typing_extensions to shadow the venv's version, breaking pydantic_core.
 
 a = Analysis(
     ['desktop.py'],
-    pathex=['/usr/lib/python3/dist-packages'],
+    pathex=[],
     binaries=[],
     datas=[('web/dist', 'web/dist')],
     hiddenimports=[
-        # PyYAML — used in worksheetfiller/config.py
+        # PyYAML
         'yaml',
         # python-dotenv
         'dotenv',
-        # python-docx internals PyInstaller misses
+        # python-docx
         'docx',
-        'docx.oxml',
-        'docx.oxml.ns',
-        'docx.parts',
-        'docx.parts.document',
-        # uvicorn workers
+        # uvicorn workers (dynamic imports PyInstaller misses)
         'uvicorn.logging',
         'uvicorn.loops',
         'uvicorn.loops.auto',
@@ -35,7 +37,7 @@ a = Analysis(
     ],
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=['hooks/rthook_gi.py'],
     excludes=[],
     noarchive=False,
     optimize=0,
