@@ -5,6 +5,7 @@ import { useQuill } from '../contexts/QuillContext';
 import { Button } from '../components/ui/Button';
 import { Meter } from '../components/ui/Meter';
 import { SessionRow } from '../components/SessionRow';
+import { CourseCircle } from '../components/CourseCircle';
 import { courseProgress, pendingMcqs, pendingSlos } from '../utils/sessions';
 
 type Filter = 'all' | 'pending' | 'done';
@@ -96,6 +97,10 @@ export function CourseDetail() {
           </div>
         </div>
       </header>
+
+      <section className="border-b border-line py-5" aria-label="Course map">
+        <CourseCircle code={course.code} />
+      </section>
 
       <div className="flex items-center gap-1 py-3">
         {(['all', 'pending', 'done'] as Filter[]).map((f) =>

@@ -8,7 +8,7 @@ import { LogStream } from '../components/LogStream';
 import { courseProgress, pendingMcqs, pendingSlos } from '../utils/sessions';
 
 export function Dashboard() {
-  const { courses, log, drive, gateway, startPipeline, student, students } = useQuill();
+  const { courses, log, drive, gateway, startPipeline, student } = useQuill();
   const navigate = useNavigate();
 
   const totalSessions = courses.reduce((n, c) => n + c.sessions.length, 0);
@@ -95,7 +95,7 @@ export function Dashboard() {
             Courses
           </h2>
           <span className="font-mono text-2xs text-faint">
-            {students.length} student profile{students.length === 1 ? '' : 's'} configured
+            {courses.length} course{courses.length === 1 ? '' : 's'} synced
           </span>
         </div>
 
