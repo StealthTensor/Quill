@@ -5,7 +5,7 @@ import {
   PlayIcon,
   RefreshCwIcon,
   SettingsIcon,
-  TerminalIcon,
+  SendIcon,
   LogOutIcon } from
 'lucide-react';
 import { useQuill } from '../contexts/QuillContext';
@@ -16,6 +16,7 @@ import { courseProgress, pendingSlos } from '../utils/sessions';
 const NAV = [
 { to: '/', label: 'Dashboard', icon: LayoutDashboardIcon },
 { to: '/pipeline', label: 'Pipeline', icon: PlayIcon },
+{ to: '/review', label: 'Review', icon: SendIcon },
 { to: '/settings', label: 'Settings', icon: SettingsIcon }];
 
 

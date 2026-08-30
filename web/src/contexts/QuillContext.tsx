@@ -10,7 +10,6 @@ import type {
   StepState,
   Student } from
 '../types/quill';
-import { pendingSlos } from '../utils/sessions';
 
 export interface PipelineScope {
   studentIds: string[];
@@ -162,44 +161,50 @@ export function QuillProvider({
     );
   }, []);
 
-  const buildJobs = useCallback(
-    (scope: PipelineScope): Job[] => {
-      const out: Job[] = [];
-      for (const sid of scope.studentIds) {
-        const st = students.find((s) => s.id === sid);
-        if (!st) continue;
-        for (const code of scope.courseCodes) {
-          const course = courses.find((c) => c.code === code);
-          if (!course) continue;
-          for (const p of pendingSlos(course)) {
-            out.push({
-              id: uid('job'),
-              studentName: st.name,
-              courseCode: code,
-              session: p.session,
-              slo: p.slo,
-              status: 'queued',
-              error: null,
-              docx: null,
-              driveUrl: null,
-              elapsedMs: 0
-            });
-            if (out.length >= scope.limit) return out;
-          }
-        }
-      }
-      return out;
-    },
-    [courses]
-  );
+  // The server owns which worksheets get processed (it scans SRM). The job table
+  // is built live from the SSE stream so it always mirrors real work.
+  const scopeRef = useRef<PipelineScope>({ studentIds: [], courseCodes: [], limit: 18 });
 
   useEffect(() => {
     if (!running) return;
 
-    const es = new EventSource('/api/run/stream');
-    
+    const sc = scopeRef.current;
+    const qs = new URLSearchParams({ limit: String(sc.limit ?? 18) });
+    if (sc.courseCodes?.length) qs.set('courses', sc.courseCodes.join(','));
+    const es = new EventSource(`/api/run/stream?${qs.toString()}`);
+
+    // Build the job table live from the stream so it always mirrors real work.
+    // Events look like: "[21LEM202T] Session 103 SLO 1 — generating answers..."
+    const applyToJob = (msg: string) => {
+      const m = msg.match(/\[(\w+)\]\s*Session\s*(\d+)\s*SLO\s*(\d)/);
+      if (!m) return;
+      const code = m[1], sess = Number(m[2]), slo = Number(m[3]);
+      let status: JobStatus | null = null;
+      if (/^Submitting:/i.test(msg)) status = 'queued';
+      else if (/downloading worksheet|generating answers/i.test(msg)) status = 'generating';
+      else if (/filled \d+\/\d+ slots/i.test(msg)) status = 'filling';
+      else if (/uploading to Google Drive/i.test(msg)) status = 'uploading';
+      else if (/submitting link/i.test(msg)) status = 'submitting';
+      else if (/✅ submitted|saved to Review/i.test(msg)) status = 'done';
+      else if (/failed|crashed|rejected|unavailable|skipping/i.test(msg)) status = 'failed';
+      if (!status) return;
+      setJobs((prev) => {
+        const i = prev.findIndex((j) => j.courseCode === code && j.session === sess && j.slo === slo);
+        if (i < 0) {
+          return [...prev, {
+            id: uid('job'),
+            studentName: students[0]?.name ?? 'Student',
+            courseCode: code, session: sess, slo: (slo as 1 | 2),
+            status, error: null, docx: null, driveUrl: null, elapsedMs: 0
+          }];
+        }
+        return prev.map((j, k) => k === i ? { ...j, status } : j);
+      });
+    };
+
     const handleEvent = (level: LogLevel, msg: string) => {
         pushLog('pipeline.event', msg, level);
+        applyToJob(msg);
     };
 
     es.addEventListener('start', (e) => handleEvent('info', e.data));
@@ -207,12 +212,19 @@ export function QuillProvider({
     es.addEventListener('success', (e) => handleEvent('success', e.data));
     es.addEventListener('error', (e) => handleEvent('error', e.data));
     es.addEventListener('skip', (e) => handleEvent('info', e.data));
-    
+
+    // Tick elapsed time on whatever job is actively processing, so the row
+    // visibly moves even while a slow model is still generating.
+    const active: JobStatus[] = ['generating', 'filling', 'uploading', 'submitting'];
+    const ticker = window.setInterval(() => {
+      setJobs((prev) => prev.map((j) => active.includes(j.status) ? { ...j, elapsedMs: j.elapsedMs + 1000 } : j));
+    }, 1000);
+
     es.addEventListener('end', (e) => {
         handleEvent('success', e.data);
         setRunning(false);
         es.close();
-        
+
         // Refresh state
         fetch('/api/state').then(r => r.json()).then(data => {
             setCourses(data.courses || []);
@@ -226,37 +238,27 @@ export function QuillProvider({
     };
 
     return () => {
+      window.clearInterval(ticker);
       es.close();
     };
   }, [running, pushLog]);
 
   const startPipeline = useCallback(
     (scope: PipelineScope) => {
-      const next = buildJobs(scope);
-      setJobs(next);
-      pushLog('scan.complete', `Queued ${next.length} jobs across ${scope.courseCodes.length} course(s)`, 'success');
-      if (next.length) setRunning(true);
+      scopeRef.current = scope;
+      setJobs([]);
+      pushLog('pipeline.start', 'Starting pipeline…', 'info');
+      setRunning(true);
     },
-    [buildJobs, pushLog]
+    [pushLog]
   );
 
   const startTargeted = useCallback(
     (courseCode: string, session: number, slo: 1 | 2) => {
-      setJobs([
-      {
-        id: uid('job'),
-        studentName: students[0]?.name ?? 'Student',
-        courseCode,
-        session,
-        slo,
-        status: 'queued',
-        error: null,
-        docx: null,
-        driveUrl: null,
-        elapsedMs: 0
-      }]
-      );
-      pushLog('job.queued', `${courseCode}/${session} SLO ${slo} queued`, 'info');
+      // The server scans this course's pending work; the clicked SLO is included.
+      scopeRef.current = { studentIds: [], courseCodes: [courseCode], limit: 18 };
+      setJobs([]);
+      pushLog('pipeline.start', `Running ${courseCode} pending…`, 'info');
       setRunning(true);
     },
     [pushLog]
