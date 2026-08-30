@@ -29,13 +29,18 @@ def start_app():
 
     # Create the native window
     webview.create_window(
-        'Quill', 
-        'http://127.0.0.1:5001', 
-        width=1200, 
+        'Quill',
+        'http://127.0.0.1:5001',
+        width=1200,
         height=800,
         min_size=(900, 600)
     )
-    webview.start()
+    # private_mode defaults to True, which wipes localStorage/cookies between
+    # launches — that is what breaks "Remember me". Persist a storage profile so
+    # saved credentials survive a restart.
+    storage_path = os.path.join(os.path.expanduser('~'), '.quill', 'webview')
+    os.makedirs(storage_path, exist_ok=True)
+    webview.start(private_mode=False, storage_path=storage_path)
 
 if __name__ == '__main__':
     start_app()

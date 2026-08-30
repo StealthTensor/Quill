@@ -16,10 +16,12 @@ from worksheetfiller.runner import Job, process_job
 from worksheetfiller.llm import LLMClient
 
 
-# PRACTICE_STATUS values
-STATUS_NOT_SUBMITTED = 0
-STATUS_PENDING_REVIEW = 1
-STATUS_VERIFIED = 2
+# SLOSTATUS codes (decoded from the live getsessionstatus response):
+#   1  = released, not yet submitted (actionable)
+#   2  = submitted / done (counts toward course completion)
+#  -1  = flagged for resubmission (actionable)
+STATUS_NOT_SUBMITTED = 1
+STATUS_SUBMITTED = 2
 STATUS_RESUBMISSION = -1
 
 
@@ -27,7 +29,12 @@ class Orchestrator:
     def __init__(self, srm_client: SRMClient, gdrive_client: GDriveClient):
         self.srm = srm_client
         self.drive = gdrive_client
-        self.config = load_config(Path("config.yaml"))
+        # config.yaml is user-supplied and absent in a fresh install; fall back to
+        # the shipped example so the pipeline can still start and report status.
+        cfg_path = Path("config.yaml")
+        if not cfg_path.is_file():
+            cfg_path = Path("config.example.yaml")
+        self.config = load_config(cfg_path)
         self.llm = LLMClient(self.config)
 
     def _sse(self, event_type: str, data: str) -> str:
@@ -66,112 +73,111 @@ class Orchestrator:
         jobs_done = 0
         jobs_total = 0
 
-        # -- 2. Scan each course for pending sessions --
+        # -- 2. Scan each course for pending SLOs (real getsessionstatus shape) --
         for course in all_courses:
             c_code = course.get("COURSE_CODE", "")
-            c_batch = course.get("BATCH_ID", "")
-            c_sessions = course.get("SESSIONS", [])
-            c_slo = course.get("SLO", "")
 
             if filter_codes and c_code not in filter_codes:
                 continue
 
-            course_info = {
-                "COURSE_CODE": c_code,
-                "BATCH_ID": c_batch,
-                "SESSIONS": c_sessions,
-                "SLO": c_slo,
-            }
+            # course_info for submitlink is the full course object the portal
+            # returned; it carries COURSE_CODE / BATCH_ID / SESSIONS / SLO.
+            course_info = course
 
             yield self._sse("progress", f"[{c_code}] Scanning sessions...")
-            status_data = self.srm.get_session_status(course_info)
+            status_data = self.srm.get_session_status(course)
+            result = status_data.get("result", {}) if isinstance(status_data, dict) else {}
+            slostatus = result.get("SLOSTATUS", {}) or {}
 
-            sessions = status_data.get("sessions", [])
-            if not sessions:
-                yield self._sse("skip", f"[{c_code}] No session data returned — skipping")
+            # SLOSTATUS maps "<session><slo>" → code. 1 = released/not submitted,
+            # -1 = resubmission (both actionable); 2 = already submitted. Keys with
+            # a non-numeric or <101 session are portal noise ("undefined1", "11").
+            pending = []
+            for key, code in slostatus.items():
+                sess = key[:-1]
+                if not sess.isdigit() or int(sess) < 101:
+                    continue
+                try:
+                    code = int(code)
+                except (TypeError, ValueError):
+                    continue
+                if code in (STATUS_NOT_SUBMITTED, STATUS_RESUBMISSION):
+                    pending.append((int(sess), int(key[-1]), code))
+            pending.sort()
+
+            if not pending:
+                yield self._sse("skip", f"[{c_code}] No pending worksheets")
                 continue
 
-            for session in sessions:
+            for session_num, slo_num, code in pending:
                 if jobs_done >= limit:
                     yield self._sse("progress", f"Reached limit of {limit} jobs — stopping")
                     break
 
-                session_num = session.get("SESSION_NUMBER") or session.get("SESSION")
-                if not session_num:
+                jobs_total += 1
+                label = f"[{c_code}] Session {session_num} SLO {slo_num}"
+                action = "Resubmitting" if code == STATUS_RESUBMISSION else "Submitting"
+                yield self._sse("progress", f"{action}: {label}")
+
+                # -- 3. Find & fill worksheet template --
+                template_name = f"{c_code}_{session_num}_SLO{slo_num}.docx"
+                template_path = Path(f"templates/{template_name}")
+
+                if not template_path.exists():
+                    # Try generic fallback
+                    fallbacks = list(Path("templates").glob(f"{c_code}_*.docx")) if Path("templates").exists() else []
+                    if fallbacks:
+                        template_path = fallbacks[0]
+                        yield self._sse("progress", f"Using fallback template: {template_path.name}")
+                    else:
+                        yield self._sse("skip", f"{label} — no worksheet template found, skipping")
+                        continue
+
+                yield self._sse("progress", f"{label} — generating answers with AI...")
+                job = Job(document=template_path, student=student)
+
+                loop = asyncio.get_event_loop()
+                try:
+                    result = await loop.run_in_executor(
+                        None, process_job, job, self.config, self.llm
+                    )
+                except Exception as e:
+                    yield self._sse("error", f"{label} — AI generation crashed: {e}")
                     continue
 
-                # Check SLO1 and SLO2
-                for slo_num in (1, 2):
-                    practice_key = f"{session_num}{slo_num}"
-                    practice_status = session.get(f"PRACTICE_{practice_key}", {}).get("STATUS")
+                if result.status == "failed":
+                    yield self._sse("error", f"{label} — generation failed: {result.error}")
+                    continue
+                if result.status == "skipped":
+                    yield self._sse("skip", f"{label} — skipped (quota exhausted)")
+                    continue
 
-                    if practice_status not in (STATUS_NOT_SUBMITTED, STATUS_RESUBMISSION):
-                        continue  # Already done
+                yield self._sse("progress", f"{label} — filled {result.slots_written}/{result.slots_total} slots ✓")
 
-                    jobs_total += 1
-                    label = f"[{c_code}] Session {session_num} SLO {slo_num}"
-                    action = "Resubmitting" if practice_status == STATUS_RESUBMISSION else "Submitting"
-                    yield self._sse("progress", f"{action}: {label}")
+                # -- 4. Upload to Google Drive --
+                yield self._sse("progress", f"{label} — uploading to Google Drive...")
+                try:
+                    drive_link = await loop.run_in_executor(
+                        None,
+                        self.drive.upload_file,
+                        str(result.output_path),
+                        result.output_path.name,
+                    )
+                except Exception as e:
+                    yield self._sse("error", f"{label} — Drive upload failed: {e}")
+                    continue
 
-                    # -- 3. Find & fill worksheet template --
-                    template_name = f"{c_code}_{session_num}_SLO{slo_num}.docx"
-                    template_path = Path(f"templates/{template_name}")
+                yield self._sse("progress", f"{label} — uploaded ✓")
 
-                    if not template_path.exists():
-                        # Try generic fallback
-                        fallbacks = list(Path("templates").glob(f"{c_code}_*.docx")) if Path("templates").exists() else []
-                        if fallbacks:
-                            template_path = fallbacks[0]
-                            yield self._sse("progress", f"Using fallback template: {template_path.name}")
-                        else:
-                            yield self._sse("skip", f"{label} — no template found, skipping")
-                            continue
+                # -- 5. Submit link to SRM --
+                yield self._sse("progress", f"{label} — submitting link to SRM portal...")
+                submit_resp = self.srm.submit_link(course_info, session_num, slo_num, drive_link)
 
-                    yield self._sse("progress", f"{label} — generating answers with AI...")
-                    job = Job(document=template_path, student=student)
-
-                    loop = asyncio.get_event_loop()
-                    try:
-                        result = await loop.run_in_executor(
-                            None, process_job, job, self.config, self.llm
-                        )
-                    except Exception as e:
-                        yield self._sse("error", f"{label} — AI generation crashed: {e}")
-                        continue
-
-                    if result.status == "failed":
-                        yield self._sse("error", f"{label} — generation failed: {result.error}")
-                        continue
-                    if result.status == "skipped":
-                        yield self._sse("skip", f"{label} — skipped (quota exhausted)")
-                        continue
-
-                    yield self._sse("progress", f"{label} — filled {result.slots_written}/{result.slots_total} slots ✓")
-
-                    # -- 4. Upload to Google Drive --
-                    yield self._sse("progress", f"{label} — uploading to Google Drive...")
-                    try:
-                        drive_link = await loop.run_in_executor(
-                            None,
-                            self.drive.upload_file,
-                            str(result.output_path),
-                            result.output_path.name,
-                        )
-                    except Exception as e:
-                        yield self._sse("error", f"{label} — Drive upload failed: {e}")
-                        continue
-
-                    yield self._sse("progress", f"{label} — uploaded ✓")
-
-                    # -- 5. Submit link to SRM --
-                    yield self._sse("progress", f"{label} — submitting link to SRM portal...")
-                    submit_resp = self.srm.submit_link(course_info, session_num, slo_num, drive_link)
-
-                    if submit_resp.get("Status") == 1:
-                        jobs_done += 1
-                        yield self._sse("success", f"{label} ✅ submitted — pending review")
-                    else:
-                        yield self._sse("error", f"{label} — SRM rejected: {submit_resp.get('Message', submit_resp)}")
+                if submit_resp.get("Status") == 1:
+                    jobs_done += 1
+                    yield self._sse("success", f"{label} ✅ submitted — pending review")
+                else:
+                    yield self._sse("error", f"{label} — SRM rejected: {submit_resp.get('Message', submit_resp)}")
 
         # -- Summary --
         if jobs_total == 0:
