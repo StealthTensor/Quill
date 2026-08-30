@@ -38,7 +38,7 @@ export function JobTable({ jobs, onRetry }: {jobs: Job[];onRetry: (id: string) =
               </td>
               <td className="px-2 py-2">
                 <JobBadge status={j.status} />
-                {j.error && <p className="mt-1 max-w-xs font-mono text-2xs text-danger">{j.error}</p>}
+                {j.error && <p className="mt-1 max-w-xs font-mono text-2xs text-danger break-all">{j.error}</p>}
               </td>
               <td className="px-2 py-2">
                 {j.docx ?

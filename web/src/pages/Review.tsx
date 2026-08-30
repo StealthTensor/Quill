@@ -13,7 +13,7 @@ type ReviewItem = {
 
 type RowState = 'idle' | 'submitting' | 'done' | 'failed' | 'held';
 
-async function postJSON(url: string, body: unknown, ms = 60000) {
+async function postJSON(url: string, body: unknown, ms = 90000) {
   const ac = new AbortController();
   const t = window.setTimeout(() => ac.abort(), ms);
   try {
@@ -97,7 +97,7 @@ export function Review() {
     if (st === 'submitting') return <span className="font-mono text-2xs text-warn">Submitting…</span>;
     if (st === 'done') return <span className="inline-flex items-center gap-1 font-mono text-2xs text-accent"><CheckIcon className="h-3 w-3" />Submitted</span>;
     if (st === 'held') return <span className="font-mono text-2xs text-warn">Held — tomorrow</span>;
-    if (st === 'failed') return <span className="font-mono text-2xs text-danger" title={msg[id]}>Failed — {msg[id] || 'retry'}</span>;
+    if (st === 'failed') return <span className="block truncate font-mono text-2xs text-danger" title={msg[id]}>Failed — {msg[id] || 'retry'}</span>;
     return null;
   };
 
@@ -147,7 +147,7 @@ export function Review() {
                   open doc
                   <ExternalLinkIcon className="h-3 w-3" aria-hidden />
                 </a>
-                <div className="flex w-40 shrink-0 items-center justify-end gap-3">
+                <div className="flex min-w-0 max-w-sm shrink-0 items-center justify-end gap-3">
                   {badge(it.id)}
                   {st !== 'done' &&
                   <Button
