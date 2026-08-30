@@ -40,3 +40,8 @@ config.yaml
 # OS
 .Spotlight-V100
 .Trashes
+appimagetool
+Quill.spec
+Quill-linux-x86_64.AppImage
+package-lock.json
+AppDir/
