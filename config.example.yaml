@@ -3,7 +3,7 @@
 
 api:
   base_url: http://localhost:3001/v1   # overridden by FREELLMAPI_BASE_URL if set
-  model: auto                          # "auto" lets the gateway route; "fusion" is slower but stronger
+  model: gemini-3.5-flash-lite         # fast (~2s/answer); "auto" routes to a huge, slow model
   temperature: 0.85
   max_tokens: 16000
   timeout_seconds: 240
