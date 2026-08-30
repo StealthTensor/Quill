@@ -109,7 +109,7 @@ export function buildSessions(code: string, total: number, completed: number): S
 export function courseProgress(course: Course): {done: number;total: number;pct: number;} {
   const total = course.sessions.length;
   const done = course.sessions.filter((s) => s.slo1 === 'verified' && s.slo2 === 'verified').length;
-  return { done, total, pct: Math.round(done / total * 100) };
+  return { done, total, pct: total ? Math.round(done / total * 100) : 0 };
 }
 
 export function pendingSlos(course: Course): Array<{session: number;slo: 1 | 2;}> {
