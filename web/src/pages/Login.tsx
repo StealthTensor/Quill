@@ -8,9 +8,12 @@ type TestState = 'idle' | 'testing' | 'ok' | 'error';
 
 export function Login() {
   const { signIn, student, gateway, drive, setDrive, pushLog } = useQuill();
-  const [rememberMe, setRememberMe] = useState(() => localStorage.getItem('quill_remember') === 'true');
-  const [regNo, setRegNo] = useState(() => localStorage.getItem('quill_regNo') || student?.regNo || '');
-  const [password, setPassword] = useState(() => localStorage.getItem('quill_pass') || student?.regNo || '');
+  const getStorage = (key: string) => {
+    try { return localStorage.getItem(key); } catch { return null; }
+  };
+  const [rememberMe, setRememberMe] = useState(() => getStorage('quill_remember') === 'true');
+  const [regNo, setRegNo] = useState(() => getStorage('quill_regNo') || student?.regNo || '');
+  const [password, setPassword] = useState(() => getStorage('quill_pass') || student?.regNo || '');
   const [showPassword, setShowPassword] = useState(false);
   const [test, setTest] = useState<TestState>('idle');
   const [driveBusy, setDriveBusy] = useState(false);
@@ -38,15 +41,17 @@ export function Login() {
       if (res.ok) {
         setTest('ok');
         pushLog('srm.ok', `Authenticated successfully`, 'success');
-        if (rememberMe) {
-          localStorage.setItem('quill_remember', 'true');
-          localStorage.setItem('quill_regNo', regNo);
-          localStorage.setItem('quill_pass', password);
-        } else {
-          localStorage.removeItem('quill_remember');
-          localStorage.removeItem('quill_regNo');
-          localStorage.removeItem('quill_pass');
-        }
+        try {
+          if (rememberMe) {
+            localStorage.setItem('quill_remember', 'true');
+            localStorage.setItem('quill_regNo', regNo);
+            localStorage.setItem('quill_pass', password);
+          } else {
+            localStorage.removeItem('quill_remember');
+            localStorage.removeItem('quill_regNo');
+            localStorage.removeItem('quill_pass');
+          }
+        } catch {}
       } else {
         setTest('error');
         pushLog('srm.error', 'SRM rejected credentials (401)', 'error');
