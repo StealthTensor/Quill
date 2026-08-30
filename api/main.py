@@ -16,6 +16,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.srm_client import SRMClient
 from core.gdrive import GDriveClient
 from core.orchestrator import Orchestrator
+from core import appsettings, stargate, quota, reviews
 
 app = FastAPI()
 
@@ -47,15 +48,44 @@ class PipelineScopeRequest(BaseModel):
     courseCodes: list[str] = []
     limit: int = 999
 
+class SettingsRequest(BaseModel):
+    persona: str | None = None
+    autoSubmit: bool | None = None
+
+class StargateRequest(BaseModel):
+    username: str
+
+
+# ── Settings (single user) ──────────────────────────────────────────────────────
+
+@app.get("/api/settings")
+def get_settings():
+    return appsettings.load()
+
+@app.post("/api/settings")
+def save_settings(req: SettingsRequest):
+    return appsettings.save(req.model_dump(exclude_none=True))
+
+
+# ── Star gate ───────────────────────────────────────────────────────────────────
+
+@app.get("/api/stargate/status")
+def stargate_status():
+    return stargate.gate_check(stargate.get_github_username())
+
+@app.post("/api/stargate/username")
+def stargate_username(req: StargateRequest):
+    stargate.save_github_username(req.username)
+    return stargate.gate_check(req.username)
+
 
 # ── State helpers ───────────────────────────────────────────────────────────────
 
-# getsessionstatus returns result.SLOSTATUS, a map of "<session><slo>" → code.
-# Observed against the live portal: 1 = released but not submitted (pending),
-# 2 = submitted (counts toward course completion). -1 = flagged for resubmission.
-# An absent SLO key means that half of the session is not released → treat as
-# done so it never shows as phantom pending work.
-_SLO_STATUS = {1: "not_started", 2: "verified", -1: "resubmission"}
+# getcircleinfo SLO node Status (decoded from the live portal / sunburst):
+#   0 = not started, 1 = in progress, 2 = completed.
+# Anything that is not 2 is still pending submission → the student must act on it.
+def _slo_state(status) -> str:
+    return "verified" if status == 2 else "not_started"
 
 
 def _full_name(u: dict) -> str:
@@ -70,62 +100,45 @@ def _full_name(u: dict) -> str:
     return f"{first} {last}".strip()
 
 
-def _unit_for_session(num: int) -> int:
-    return (num - 101) // 9 + 1
-
-
-def _slo_state(raw) -> str:
-    try:
-        return _SLO_STATUS.get(int(raw), "not_started")
-    except (TypeError, ValueError):
-        return "verified"  # SLO not released for this session → not pending
-
-
-def _slo_link(slolink: dict, key: str):
-    v = slolink.get(key)
-    if isinstance(v, dict):
-        return v.get("view") or v.get("download") or None
-    if isinstance(v, str):
-        return v or None
-    return None
-
-
 def _fetch_sessions(course: dict) -> list[dict]:
-    """Scan one course's released worksheets from SRM's getsessionstatus and map
-    to the frontend Session shape. Sessions appear only once released, so this is
-    the real list of worksheets the student can act on."""
-    data = srm_client.get_session_status(course)
-    result = data.get("result", {}) if isinstance(data, dict) else {}
-    slostatus = result.get("SLOSTATUS") or {}
-    slolink = result.get("SLOLINK") or {}
-    mcq = result.get("MCQ") or {}
-
-    # Keys are "<session><slo>" with the SLO as the trailing digit. Strip it and
-    # keep only real session numbers (>= 101); the portal emits "undefined1" and
-    # other noise keys we must ignore.
-    nums = set()
-    for k in slostatus:
-        sess = k[:-1]
-        if sess.isdigit() and int(sess) >= 101:
-            nums.add(int(sess))
+    """Scan a course's full worksheet tree from SRM's getcircleinfo and map to the
+    frontend Session shape. This is the real, complete list of worksheets — every
+    unit and session — with per-SLO completion status."""
+    data = srm_client.get_circle_info(course.get("COURSE_CODE", ""))
+    flare = data.get("flare", {}) if isinstance(data, dict) else {}
 
     out = []
-    for num in sorted(nums):
-        mcq_raw = mcq.get(str(num))
-        out.append({
-            "number": num,
-            "unit": _unit_for_session(num),
-            "mcqScore": mcq_raw if isinstance(mcq_raw, (int, float)) else None,
-            "slo1": _slo_state(slostatus.get(f"{num}1")),
-            "slo2": _slo_state(slostatus.get(f"{num}2")),
-            "slo1Link": _slo_link(slolink, f"{num}1"),
-            "slo2Link": _slo_link(slolink, f"{num}2"),
-            "slo1Desc": "",
-            "slo2Desc": "",
-            "mcqs": [],
-            "shortQuestions": [],
-            "longQuestions": [],
-        })
+    for unit in flare.get("children", []) or []:
+        for sess in unit.get("children", []) or []:
+            slos = sess.get("children", []) or []
+            if not slos:
+                continue
+            num = (slos[0].get("course") or {}).get("SESSION")
+            try:
+                num = int(num)
+            except (TypeError, ValueError):
+                continue
+            # SLO node key ends with the SLO number ("1031" → SLO 1).
+            by_slo = {}
+            for c in slos:
+                key = str(c.get("key") or "")
+                if key and key[-1] in ("1", "2"):
+                    by_slo[int(key[-1])] = c.get("Status")
+            out.append({
+                "number": num,
+                "unit": num // 100,           # session number = unit*100 + index
+                "mcqScore": None,
+                "slo1": _slo_state(by_slo.get(1)),
+                "slo2": _slo_state(by_slo.get(2)),
+                "slo1Link": None,
+                "slo2Link": None,
+                "slo1Desc": "",
+                "slo2Desc": "",
+                "mcqs": [],
+                "shortQuestions": [],
+                "longQuestions": [],
+            })
+    out.sort(key=lambda s: s["number"])
     return out
 
 
@@ -176,7 +189,77 @@ def get_state():
         "srm": "connected" if srm_client.auth_token else "disconnected",
         "drive": "connected" if gdrive_client.is_authenticated() else "disconnected",
         "gateway": "connected" if os.environ.get("FREELLMAPI_API_KEY") else "disconnected",
+        "dailyLimit": quota.DAILY_LIMIT,
+        "dailyRemaining": quota.remaining_today(),
     }
+
+
+# ── Review queue (filled, awaiting submit) ──────────────────────────────────────
+
+class ReviewSubmitRequest(BaseModel):
+    id: str
+
+
+def _submit_review(item: dict) -> dict:
+    """Submit one review item's Drive link to SRM. Returns a result dict."""
+    resp = srm_client.submit_link(
+        item["courseInfo"], item["session"], item["slo"], item["driveLink"]
+    )
+    if resp.get("Status") == 1:
+        reviews.remove(item["id"])
+        quota.record(1)
+        return {"ok": True}
+    return {"ok": False, "error": str(resp.get("Message", resp))}
+
+
+@app.get("/api/reviews")
+def get_reviews():
+    return {
+        "items": reviews.list_public(),
+        "dailyLimit": quota.DAILY_LIMIT,
+        "dailyRemaining": quota.remaining_today(),
+    }
+
+
+@app.post("/api/reviews/submit")
+def submit_review(req: ReviewSubmitRequest):
+    if quota.remaining_today() <= 0:
+        raise HTTPException(status_code=429, detail="Daily submit limit reached — try again tomorrow")
+    item = reviews.get(req.id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Review item not found")
+    return _submit_review(item)
+
+
+@app.post("/api/reviews/submit_all")
+def submit_all_reviews():
+    """Submit as many held worksheets as today's remaining cap allows."""
+    submitted, failed, skipped = 0, 0, 0
+    for item in reviews.list_public():
+        if quota.remaining_today() <= 0:
+            skipped += 1
+            continue
+        full = reviews.get(item["id"])
+        if not full:
+            continue
+        res = _submit_review(full)
+        if res["ok"]:
+            submitted += 1
+        else:
+            failed += 1
+    return {"submitted": submitted, "failed": failed, "skipped": skipped,
+            "dailyRemaining": quota.remaining_today()}
+
+
+@app.get("/api/circle/{course_code}")
+def get_circle(course_code: str):
+    """Raw learning-session tree (sunburst) for one course."""
+    if not (srm_client.auth_token and srm_client.user_id):
+        raise HTTPException(status_code=401, detail="Not logged in")
+    data = srm_client.get_circle_info(course_code)
+    if data.get("Status") != 1:
+        raise HTTPException(status_code=502, detail="Could not fetch course tree")
+    return {"flare": data.get("flare", {})}
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -226,9 +309,10 @@ async def run_stream(scope: PipelineScopeRequest):
 
 # Also support GET for EventSource (browser EventSource only does GET)
 @app.get("/api/run/stream")
-async def run_stream_get(limit: int = 999):
+async def run_stream_get(limit: int = 999, courses: str = ""):
+    codes = [c for c in courses.split(",") if c]
     return StreamingResponse(
-        _pipeline_events({"limit": limit}),
+        _pipeline_events({"limit": limit, "courseCodes": codes}),
         media_type="text/event-stream",
     )
 
