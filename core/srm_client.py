@@ -65,6 +65,42 @@ class SRMClient:
             "COURSE_INFO": course_info
         })
 
+    def get_circle_info(self, course_code: str) -> Dict[str, Any]:
+        """Full learning-session tree for a course (the portal's 'sunburst').
+        Returns {'Status':1,'flare':{children:[unit -> session -> slo]}} where
+        each SLO node carries course.SESSION, key ('<session><slo>') and Status
+        (0=not started, 1=in progress, 2=completed)."""
+        return self._post("student/course/getcircleinfo", {
+            "data": {
+                "COURSE_CODE": course_code,
+                "COURSE_NAME": course_code,
+                "USER_ID": self.user_id,
+                "title": "course_learning_session",
+            }
+        })
+
+    def get_worksheet_url(self, course_code: str, session_num: int, slo_num: int,
+                          ext: str = "docx") -> str | None:
+        """Resolve the download URL of a session's blank practice worksheet
+        (slp = SLO practice). filename is '<session><slo>.<ext>', e.g. 1031.docx."""
+        resp = self._post("admin/file/getfile", {
+            "path": f"data/coordinator/{course_code}/slp",
+            "filename": f"{session_num}{slo_num}.{ext}",
+            "server": "https://dld.srmist.edu.in/etecurricula/server",
+        })
+        if resp.get("Status") == 1:
+            return (resp.get("result") or {}).get("path")
+        return None
+
+    def download_worksheet(self, url: str) -> bytes | None:
+        """Fetch the worksheet bytes from a get_worksheet_url() path."""
+        try:
+            r = self.session.get(url, headers=self._get_headers(), timeout=30)
+            r.raise_for_status()
+            return r.content
+        except requests.exceptions.RequestException:
+            return None
+
     def get_questions(self, course_info: Dict[str, Any], slot: list, session_num: int) -> Dict[str, Any]:
         return self._post("student/session/getquestions", {
             "COURSE_INFO": course_info,

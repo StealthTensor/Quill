@@ -6,23 +6,21 @@ uploads to Drive, and submits links back to SRM.
 import asyncio
 import json
 import os
+import tempfile
 from pathlib import Path
 from typing import AsyncGenerator
 
 from core.srm_client import SRMClient
 from core.gdrive import GDriveClient
-from worksheetfiller.config import load_config
+from core import appsettings, quota, reviews
+from worksheetfiller.config import Student, load_config
 from worksheetfiller.runner import Job, process_job
 from worksheetfiller.llm import LLMClient
 
 
-# SLOSTATUS codes (decoded from the live getsessionstatus response):
-#   1  = released, not yet submitted (actionable)
-#   2  = submitted / done (counts toward course completion)
-#  -1  = flagged for resubmission (actionable)
-STATUS_NOT_SUBMITTED = 1
-STATUS_SUBMITTED = 2
-STATUS_RESUBMISSION = -1
+# getcircleinfo SLO node Status: 0 = not started, 1 = in progress, 2 = completed.
+# Anything that is not completed is still pending submission.
+STATUS_COMPLETED = 2
 
 
 class Orchestrator:
@@ -35,19 +33,27 @@ class Orchestrator:
         if not cfg_path.is_file():
             cfg_path = Path("config.example.yaml")
         self.config = load_config(cfg_path)
-        self.llm = LLMClient(self.config)
+        self.llm = LLMClient(self.config.api)  # LLMClient wants ApiConfig, not the full AppConfig
+        # Scratch dir for worksheets downloaded from SRM before filling.
+        self._workdir = Path(tempfile.mkdtemp(prefix="quill_ws_"))
 
     def _sse(self, event_type: str, data: str) -> str:
         """Format an SSE message."""
         return f"event: {event_type}\ndata: {data}\n\n"
 
-    def _find_student(self, user_id: str):
-        """Find a student in config matching the logged-in user_id."""
-        for s in self.config.students:
-            if getattr(s, "reg_no", None) == user_id or getattr(s, "name", "").replace(" ", "").lower() in user_id.lower():
-                return s
-        # Fallback — use first student
-        return self.config.students[0]
+    def _build_student(self, persona: str) -> Student:
+        """Build the (single) student straight from the SRM profile — no config."""
+        u = (self.srm.get_profile() or {}).get("user", {}) or {}
+        first = (u.get("FIRST_NAME") or "").strip()
+        last = (u.get("LAST_NAME") or "").strip()
+        name = first if (not last or last.lower() in first.lower()) else f"{first} {last}".strip()
+        return Student(
+            name=name or (self.srm.user_id or "Student"),
+            reg_no=self.srm.user_id or "",
+            branch=u.get("DEPARTMENT", "") or "",
+            section="",
+            persona=persona or "",
+        )
 
     async def run_pipeline(self, scope: dict = None) -> AsyncGenerator[str, None]:
         """
@@ -64,16 +70,20 @@ class Orchestrator:
             return
 
         all_courses = courses_data.get("courses", [])
-        student = self._find_student(self.srm.user_id or "")
-        limit = (scope or {}).get("limit", 999)
+        settings = appsettings.load()
+        student = self._build_student(settings.get("persona", ""))
+        auto_submit = settings.get("autoSubmit", False)
         filter_codes = set((scope or {}).get("courseCodes", []))
+
+        # Bound one run to at most a unit's worth of worksheets to fill.
+        limit = min((scope or {}).get("limit", 999), quota.DAILY_LIMIT)
 
         yield self._sse("progress", f"Found {len(all_courses)} courses. Scanning for pending work...")
 
         jobs_done = 0
         jobs_total = 0
 
-        # -- 2. Scan each course for pending SLOs (real getsessionstatus shape) --
+        # -- 2. Scan each course for pending SLOs (getcircleinfo — full tree) --
         for course in all_courses:
             c_code = course.get("COURSE_CODE", "")
 
@@ -85,53 +95,48 @@ class Orchestrator:
             course_info = course
 
             yield self._sse("progress", f"[{c_code}] Scanning sessions...")
-            status_data = self.srm.get_session_status(course)
-            result = status_data.get("result", {}) if isinstance(status_data, dict) else {}
-            slostatus = result.get("SLOSTATUS", {}) or {}
+            circle = self.srm.get_circle_info(c_code)
+            flare = circle.get("flare", {}) if isinstance(circle, dict) else {}
 
-            # SLOSTATUS maps "<session><slo>" → code. 1 = released/not submitted,
-            # -1 = resubmission (both actionable); 2 = already submitted. Keys with
-            # a non-numeric or <101 session are portal noise ("undefined1", "11").
+            # Every SLO node with Status != completed is pending submission.
             pending = []
-            for key, code in slostatus.items():
-                sess = key[:-1]
-                if not sess.isdigit() or int(sess) < 101:
-                    continue
-                try:
-                    code = int(code)
-                except (TypeError, ValueError):
-                    continue
-                if code in (STATUS_NOT_SUBMITTED, STATUS_RESUBMISSION):
-                    pending.append((int(sess), int(key[-1]), code))
+            for unit in flare.get("children", []) or []:
+                for sess in unit.get("children", []) or []:
+                    for slo in sess.get("children", []) or []:
+                        if slo.get("Status") == STATUS_COMPLETED:
+                            continue
+                        key = str(slo.get("key") or "")
+                        snum = (slo.get("course") or {}).get("SESSION")
+                        if not key or key[-1] not in ("1", "2"):
+                            continue
+                        try:
+                            pending.append((int(snum), int(key[-1])))
+                        except (TypeError, ValueError):
+                            continue
             pending.sort()
 
             if not pending:
                 yield self._sse("skip", f"[{c_code}] No pending worksheets")
                 continue
 
-            for session_num, slo_num, code in pending:
+            for session_num, slo_num in pending:
                 if jobs_done >= limit:
                     yield self._sse("progress", f"Reached limit of {limit} jobs — stopping")
                     break
 
                 jobs_total += 1
                 label = f"[{c_code}] Session {session_num} SLO {slo_num}"
-                action = "Resubmitting" if code == STATUS_RESUBMISSION else "Submitting"
-                yield self._sse("progress", f"{action}: {label}")
+                yield self._sse("progress", f"Submitting: {label}")
 
-                # -- 3. Find & fill worksheet template --
-                template_name = f"{c_code}_{session_num}_SLO{slo_num}.docx"
-                template_path = Path(f"templates/{template_name}")
-
-                if not template_path.exists():
-                    # Try generic fallback
-                    fallbacks = list(Path("templates").glob(f"{c_code}_*.docx")) if Path("templates").exists() else []
-                    if fallbacks:
-                        template_path = fallbacks[0]
-                        yield self._sse("progress", f"Using fallback template: {template_path.name}")
-                    else:
-                        yield self._sse("skip", f"{label} — no worksheet template found, skipping")
-                        continue
+                # -- 3. Download the blank worksheet from SRM (slp = practice) --
+                yield self._sse("progress", f"{label} — downloading worksheet from SRM...")
+                url = self.srm.get_worksheet_url(c_code, session_num, slo_num, "docx")
+                data = self.srm.download_worksheet(url) if url else None
+                if not data or data[:2] != b"PK":
+                    yield self._sse("skip", f"{label} — worksheet unavailable, skipping")
+                    continue
+                template_path = self._workdir / f"{c_code}_{session_num}{slo_num}.docx"
+                template_path.write_bytes(data)
 
                 yield self._sse("progress", f"{label} — generating answers with AI...")
                 job = Job(document=template_path, student=student)
@@ -169,12 +174,27 @@ class Orchestrator:
 
                 yield self._sse("progress", f"{label} — uploaded ✓")
 
-                # -- 5. Submit link to SRM --
+                # -- 5. Submit to SRM, or hold for review --
+                # The daily cap is on SRM submissions (the visible action). When
+                # auto-submit is off, or the cap is reached, the filled worksheet
+                # is parked in the Review list for the user to submit later.
+                if not auto_submit:
+                    reviews.add(c_code, course_info, session_num, slo_num, drive_link)
+                    jobs_done += 1
+                    yield self._sse("success", f"{label} ✅ filled & uploaded — saved to Review")
+                    continue
+
+                if quota.remaining_today() <= 0:
+                    reviews.add(c_code, course_info, session_num, slo_num, drive_link)
+                    yield self._sse("skip", f"{label} — daily submit cap reached; saved to Review")
+                    continue
+
                 yield self._sse("progress", f"{label} — submitting link to SRM portal...")
                 submit_resp = self.srm.submit_link(course_info, session_num, slo_num, drive_link)
 
                 if submit_resp.get("Status") == 1:
                     jobs_done += 1
+                    quota.record(1)
                     yield self._sse("success", f"{label} ✅ submitted — pending review")
                 else:
                     yield self._sse("error", f"{label} — SRM rejected: {submit_resp.get('Message', submit_resp)}")
