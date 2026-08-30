@@ -28,14 +28,14 @@ export function SiteHeader() {
           : "border-b border-transparent",
       )}
     >
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-8">
+      <div className="mx-16 flex h-20 items-center justify-between px-5 sm:px-8">
         <Link to="/" className="group flex items-center gap-3">
           <img
             src={QUILL_LOGO}
             alt="Quill logo"
-            className="h-8 w-auto transition-transform duration-500 group-hover:-rotate-6"
+            className="h-12 w-auto transition-transform duration-500 group-hover:-rotate-6"
           />
-          <span className="font-display text-2xl leading-none text-foreground">Quill</span>
+          <span className="font-display text-4xl leading-none text-foreground">Quill</span>
         </Link>
 
         <nav className="flex items-center gap-1 sm:gap-2">
@@ -44,7 +44,7 @@ export function SiteHeader() {
               key={item.to}
               to={item.to}
               activeOptions={{ exact: item.to === "/" }}
-              className="rounded-full px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+              className="rounded-full px-3 py-1.5 text-sm text-foreground transition-colors hover:text-foreground"
               activeProps={{ className: "text-foreground" }}
             >
               {item.label}

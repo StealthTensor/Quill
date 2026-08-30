@@ -53,25 +53,15 @@ function Index() {
 
       <motion.div
         style={{ y: contentY, opacity: contentOpacity }}
-        className="relative flex min-h-[100svh] flex-col justify-center py-32 pr-5"
+        className="relative flex min-h-[100svh] flex-col justify-center py-32 pr-5 px-28"
       >
-        <motion.div
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.9, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-          className="flex items-center gap-4"
-        >
-          <img src={QUILL_LOGO} alt="Quill logo" className="h-12 w-auto sm:h-14" />
-          <span className="font-display text-4xl leading-none font-bold text-foreground sm:text-5xl">
-            Quill
-          </span>
-        </motion.div>
+
 
         <motion.h1
           initial={{ opacity: 0, y: 26 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-          className="mt-10 max-w-3xl text-6xl leading-[0.98] font-extrabold text-balance-tight sm:text-7xl lg:text-8xl"
+          className="mt-10 max-w-3xl leading-[0.98] font-extrabold text-balance-tight sm:text-6xl lg:text-7xl"
         >
           Your coursework, <span className="text-accent">on autopilot.</span>
         </motion.h1>
