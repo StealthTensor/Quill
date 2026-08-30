@@ -211,7 +211,7 @@ export function Settings() {
                 <Field label="Name">
                   <input
                   className={inputClass}
-                  value={s.name}
+                  value={s.name || ''}
                   onChange={(e) => updateStudent(s.id, { name: e.target.value })}
                   placeholder="Full name" />
                 
@@ -219,7 +219,7 @@ export function Settings() {
                 <Field label="Reg no">
                   <input
                   className={inputClass}
-                  value={s.regNo}
+                  value={s.regNo || ''}
                   onChange={(e) => updateStudent(s.id, { regNo: e.target.value })}
                   placeholder="RA23…" />
                 
@@ -227,23 +227,23 @@ export function Settings() {
                 <Field label="Branch">
                   <input
                   className={inputClass}
-                  value={s.branch}
+                  value={s.branch || ''}
                   onChange={(e) => updateStudent(s.id, { branch: e.target.value })} />
                 
                 </Field>
                 <Field label="Section">
                   <input
                   className={inputClass}
-                  value={s.section}
+                  value={s.section || ''}
                   onChange={(e) => updateStudent(s.id, { section: e.target.value })} />
                 
                 </Field>
               </div>
               <div className="mt-3">
-                <Field label="Persona" hint={`${s.persona.length} chars`}>
+                <Field label="Persona" hint={`${s.persona?.length || 0} chars`}>
                   <textarea
                   rows={2}
-                  value={s.persona}
+                  value={s.persona || ''}
                   onChange={(e) => updateStudent(s.id, { persona: e.target.value })}
                   className="w-full rounded-md border border-line bg-raised px-3 py-2 font-mono text-xs leading-relaxed text-ink focus:border-accent/50"
                   placeholder="How this student writes…" />
