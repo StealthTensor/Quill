@@ -8,8 +8,9 @@ type TestState = 'idle' | 'testing' | 'ok' | 'error';
 
 export function Login() {
   const { signIn, student, gateway, drive, setDrive, pushLog } = useQuill();
-  const [regNo, setRegNo] = useState(student?.regNo ?? '');
-  const [password, setPassword] = useState(student?.regNo ?? '');
+  const [rememberMe, setRememberMe] = useState(() => localStorage.getItem('quill_remember') === 'true');
+  const [regNo, setRegNo] = useState(() => localStorage.getItem('quill_regNo') || student?.regNo || '');
+  const [password, setPassword] = useState(() => localStorage.getItem('quill_pass') || student?.regNo || '');
   const [showPassword, setShowPassword] = useState(false);
   const [test, setTest] = useState<TestState>('idle');
   const [driveBusy, setDriveBusy] = useState(false);
@@ -37,6 +38,15 @@ export function Login() {
       if (res.ok) {
         setTest('ok');
         pushLog('srm.ok', `Authenticated successfully`, 'success');
+        if (rememberMe) {
+          localStorage.setItem('quill_remember', 'true');
+          localStorage.setItem('quill_regNo', regNo);
+          localStorage.setItem('quill_pass', password);
+        } else {
+          localStorage.removeItem('quill_remember');
+          localStorage.removeItem('quill_regNo');
+          localStorage.removeItem('quill_pass');
+        }
       } else {
         setTest('error');
         pushLog('srm.error', 'SRM rejected credentials (401)', 'error');
@@ -138,7 +148,18 @@ export function Login() {
                   </button>
                 </div>
               </label>
-              <div className="flex items-center gap-3">
+
+              <label className="flex items-center gap-2 pt-1 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="rounded border-line bg-raised text-accent focus:ring-accent/50"
+                />
+                <span className="text-2xs text-muted">Remember me</span>
+              </label>
+
+              <div className="flex items-center gap-3 pt-2">
                 <Button type="button" size="sm" onClick={runTest} disabled={test === 'testing'}>
                   {test === 'testing' && <LoaderIcon className="h-3.5 w-3.5 animate-spin" aria-hidden />}
                   Test connection
