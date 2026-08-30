@@ -23,6 +23,13 @@ def run_server():
     uvicorn.run(app, host="127.0.0.1", port=5001, log_level="error")
 
 def start_app():
+    # Record first-launch timestamp for the star-gate grace period.
+    try:
+        from core import stargate
+        stargate.record_first_launch()
+    except Exception:
+        pass
+
     # Start the local server in a daemon thread
     server_thread = threading.Thread(target=run_server, daemon=True)
     server_thread.start()
