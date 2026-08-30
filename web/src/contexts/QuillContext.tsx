@@ -44,6 +44,7 @@ interface QuillValue {
   retryFailed: () => void;
   scanning: boolean;
   scanNow: () => void;
+  refreshState: () => Promise<void>;
   submitMcqScore: (code: string, session: number, score: number) => void;
 }
 
@@ -85,17 +86,21 @@ export function QuillProvider({
   const [scanning, setScanning] = useState(false);
   const [log, setLog] = useState<LogEvent[]>([]);
 
-  useEffect(() => {
-    fetch('/api/state').then(r => r.json()).then(data => {
-      setCourses(data.courses || []);
-      if (data.students?.length) {
-        setStudents(data.students);
-      }
-      setSrm(data.srm ?? 'disconnected');
-      setDrive(data.drive ?? 'disconnected');
-      setGateway(data.gateway ?? 'disconnected');
-    }).catch(err => console.error("Failed to fetch state", err));
+  const refreshState = useCallback(async () => {
+    const res = await fetch('/api/state');
+    const data = await res.json();
+    setCourses(data.courses || []);
+    if (data.students?.length) {
+      setStudents(data.students);
+    }
+    setSrm(data.srm ?? 'disconnected');
+    setDrive(data.drive ?? 'disconnected');
+    setGateway(data.gateway ?? 'disconnected');
   }, []);
+
+  useEffect(() => {
+    refreshState().catch(err => console.error("Failed to fetch state", err));
+  }, [refreshState]);
 
   const pushLog = useCallback(
     (type: string, message: string, level: LogLevel = 'info', details?: string) => {
@@ -279,15 +284,18 @@ export function QuillProvider({
     setRunning(true);
   }, [pushLog]);
 
-  const scanNow = useCallback(() => {
+  const scanNow = useCallback(async () => {
     setScanning(true);
     pushLog('scan.start', 'Re-fetching course data from SRM…', 'info');
-    window.setTimeout(() => {
+    try {
+      await refreshState();
+      pushLog('scan.complete', 'Worksheets refreshed from SRM portal', 'success');
+    } catch {
+      pushLog('scan.error', 'Scan failed — could not reach SRM portal', 'error');
+    } finally {
       setScanning(false);
-      const sessions = courses.reduce((n, c) => n + c.sessions.length, 0);
-      pushLog('scan.complete', `${courses.length} courses · ${sessions} sessions refreshed`, 'success');
-    }, 1400);
-  }, [courses, pushLog]);
+    }
+  }, [refreshState, pushLog]);
 
   const submitMcqScore = useCallback(
     (code: string, session: number, score: number) => {
@@ -349,6 +357,7 @@ export function QuillProvider({
     retryFailed,
     scanning,
     scanNow,
+    refreshState,
     submitMcqScore
   };
 

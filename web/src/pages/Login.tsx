@@ -7,9 +7,22 @@ import { formatClock } from '../utils/sessions';
 type TestState = 'idle' | 'testing' | 'ok' | 'error';
 
 export function Login() {
-  const { signIn, student, gateway, drive, setDrive, pushLog } = useQuill();
+  const { signIn, student, gateway, drive, setDrive, pushLog, refreshState } = useQuill();
   const getStorage = (key: string) => {
     try { return localStorage.getItem(key); } catch { return null; }
+  };
+  const persistRemember = (remember: boolean, reg: string, pass: string) => {
+    try {
+      if (remember) {
+        localStorage.setItem('quill_remember', 'true');
+        localStorage.setItem('quill_regNo', reg);
+        localStorage.setItem('quill_pass', pass);
+      } else {
+        localStorage.removeItem('quill_remember');
+        localStorage.removeItem('quill_regNo');
+        localStorage.removeItem('quill_pass');
+      }
+    } catch {}
   };
   const [rememberMe, setRememberMe] = useState(() => getStorage('quill_remember') === 'true');
   const [regNo, setRegNo] = useState(() => getStorage('quill_regNo') || student?.regNo || '');
@@ -24,7 +37,9 @@ export function Login() {
     if (!regNo || !password) return;
     setStatus('signing-in');
     const ok = await signIn(regNo, password);
-    if (!ok) {
+    if (ok) {
+      persistRemember(rememberMe, regNo, password);
+    } else {
       setStatus('error');
     }
   };
@@ -41,17 +56,10 @@ export function Login() {
       if (res.ok) {
         setTest('ok');
         pushLog('srm.ok', `Authenticated successfully`, 'success');
-        try {
-          if (rememberMe) {
-            localStorage.setItem('quill_remember', 'true');
-            localStorage.setItem('quill_regNo', regNo);
-            localStorage.setItem('quill_pass', password);
-          } else {
-            localStorage.removeItem('quill_remember');
-            localStorage.removeItem('quill_regNo');
-            localStorage.removeItem('quill_pass');
-          }
-        } catch {}
+        persistRemember(rememberMe, regNo, password);
+        // Pull the freshly-authenticated profile so name/department/semester
+        // render in the connection summary below.
+        refreshState().catch(() => {});
       } else {
         setTest('error');
         pushLog('srm.error', 'SRM rejected credentials (401)', 'error');
