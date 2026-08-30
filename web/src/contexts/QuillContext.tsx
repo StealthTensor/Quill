@@ -114,7 +114,7 @@ export function QuillProvider({
         body: JSON.stringify({ username: regNo, password })
       });
       const data = await res.json();
-      if (data.Status === 1) {
+      if (data.ok) {
         setAuthed(true);
         setSrm('connected');
         // Fetch fresh state after login
