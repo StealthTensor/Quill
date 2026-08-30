@@ -60,24 +60,6 @@ export function Pipeline() {
           <h2 className="font-mono text-2xs uppercase tracking-widest text-faint">scope</h2>
 
           <fieldset className="mt-4">
-            <legend className="mb-2 text-2xs text-muted">Students</legend>
-            <div className="space-y-1.5">
-              {students.map((s) =>
-              <label key={s.id} className="flex cursor-pointer items-center gap-2 text-xs text-ink">
-                  <input
-                  type="checkbox"
-                  checked={selStudents.includes(s.id)}
-                  onChange={() => toggle(selStudents, setSelStudents, s.id)}
-                  className="h-3.5 w-3.5 rounded border-line bg-raised accent-accent" />
-                
-                  <span className="truncate">{s.name}</span>
-                  <span className="ml-auto font-mono text-2xs text-faint">{s.section}</span>
-                </label>
-              )}
-            </div>
-          </fieldset>
-
-          <fieldset className="mt-5">
             <legend className="mb-2 text-2xs text-muted">Courses</legend>
             <div className="space-y-1.5">
               {courses.map((c) =>
